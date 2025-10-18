@@ -30,6 +30,7 @@ jobs:
             --exclude '.github' \
             ./ ./www/
           npx cap copy android
+          npx cap update android
 
       - name: Setup Java
         uses: actions/setup-java@v4
