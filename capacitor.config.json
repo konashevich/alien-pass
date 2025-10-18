@@ -1,0 +1,10 @@
+{
+  "appId": "com.alienpass.app",
+  "appName": "AlienPass",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "http",
+    "hostname": "localhost",
+    "allowNavigation": ["localhost"]
+  }
+}

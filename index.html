@@ -477,8 +477,9 @@
 
   <script>
     (function() {
-      // PWA: register service worker
-      if ('serviceWorker' in navigator) {
+      // PWA: register service worker in browsers only (skip inside native WebViews)
+      const isNativeWebView = typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ReactNativeWebView);
+      if ('serviceWorker' in navigator && !isNativeWebView) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('./sw.js').catch(() => {/* ignore */});
         });

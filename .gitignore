@@ -1,0 +1,32 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editors / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.iml
+
+# Environment files
+.env
+.env.*
+
+# Generated web assets (Capacitor webDir)
+www/
+dist/
+build/
+coverage/
+
+# Android build outputs (duplicated ignore for safety)
+android/app/build/
+android/build/
+android/captures/
+android/local.properties
+
+# Gradle caches (if any at repo root)
+.gradle/
