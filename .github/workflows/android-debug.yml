@@ -22,7 +22,13 @@ jobs:
 
       - name: Prepare web assets
         run: |
-          rsync -a --delete --exclude 'android' --exclude 'node_modules' --exclude 'www' ./ ./www/
+          rsync -a --delete \
+            --exclude 'android' \
+            --exclude 'node_modules' \
+            --exclude 'www' \
+            --exclude '.git' \
+            --exclude '.github' \
+            ./ ./www/
           npx cap copy android
 
       - name: Setup Java
