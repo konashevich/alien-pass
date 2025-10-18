@@ -29,6 +29,9 @@ android/app/build/
 android/build/
 android/captures/
 android/local.properties
+android/keystore.properties
+android/*.keystore
+android/*.jks
 
 # Gradle caches (if any at repo root)
 .gradle/
