@@ -2,6 +2,7 @@
   "name": "alien-pass",
   "version": "1.0.0",
   "private": true,
+  "license": "MIT",
   "description": "AlienPass offline password generator with local vault (Android APK via Capacitor)",
   "scripts": {
     "cap:add:android": "cap add android",
