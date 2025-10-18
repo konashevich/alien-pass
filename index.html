@@ -7,6 +7,10 @@
   <link rel="icon" href="./alienpass.svg" type="image/svg+xml">
   <link rel="shortcut icon" href="./alienpass.svg" type="image/svg+xml">
   <link rel="mask-icon" href="./alienpass.svg" color="#3b82f6">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./alienpass.svg">
+  <meta name="theme-color" content="#3b82f6" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0b0b0c" media="(prefers-color-scheme: dark)">
   <style>
     :root {
       --bg: #ffffff;
@@ -473,6 +477,12 @@
 
   <script>
     (function() {
+      // PWA: register service worker
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js').catch(() => {/* ignore */});
+        });
+      }
       // ---------------- Tabs ----------------
       const tabs = document.querySelectorAll('.tab');
       const tabPanels = {
