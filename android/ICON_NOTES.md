@@ -13,6 +13,7 @@ Notes
 
 - Min SDK is 22. On Android < 8.0 (API < 26), legacy PNG mipmaps (`mipmap-*/ic_launcher.png`) are used by the OS. If you need the new look on very old devices, regenerate those PNGs (e.g., via Android Studio Image Asset) using the same foreground and background.
 - On Android 8.0+ the adaptive icon above is used automatically.
+- Foreground safe area: the glyph is scaled to 0.75 and centered to prevent clipping by the adaptive icon mask on various OEM shapes (circle, squircle, rounded rect). Adjust `scaleX/scaleY` in the `<group>` if you need more or less padding.
 
 Build tips
 
