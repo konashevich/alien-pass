@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://api.github.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests">
   <meta http-equiv="Referrer-Policy" content="no-referrer">
   <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), accelerometer=(), gyroscope=(), clipboard-read=(self), clipboard-write=(self)">
   <title>AlienPass</title>
@@ -395,6 +395,13 @@
           <blockquote class="credit-quote">
             xxHash is an Extremely fast Hash algorithm, running at RAM speed limits.
           </blockquote>
+        </section>
+        <section class="mt-12">
+          <h3>Download</h3>
+          <p>
+            Android APK: <a id="latestApkLink" href="https://github.com/konashevich/alien-pass/releases/latest" target="_blank" rel="noopener">Latest release</a>
+            <span id="apkHint" class="ghost"></span>
+          </p>
         </section>
       </div>
     </section>
@@ -867,6 +874,42 @@
       if (aboutYear) {
         aboutYear.textContent = new Date().getFullYear();
       }
+
+      // Auto-resolve "Latest APK" link from GitHub Releases (graceful fallback)
+      (async function updateLatestApkLink() {
+        try {
+          const link = document.getElementById('latestApkLink');
+          if (!link) return;
+          const hint = document.getElementById('apkHint');
+          const cacheKey = 'latestApkMeta';
+          const cached = (() => { try { return JSON.parse(localStorage.getItem(cacheKey) || 'null'); } catch { return null; } })();
+          const now = Date.now();
+          if (cached && cached.url && (now - (cached.ts || 0) < 12 * 60 * 60 * 1000)) {
+            link.href = cached.url;
+            if (hint && cached.tag) hint.textContent = `(${cached.tag})`;
+          }
+
+          // Fetch latest release info
+          const res = await fetch('https://api.github.com/repos/konashevich/alien-pass/releases/latest', {
+            headers: { 'Accept': 'application/vnd.github+json' }
+          });
+          if (!res.ok) return; // keep fallback
+          const data = await res.json();
+          const assets = Array.isArray(data.assets) ? data.assets : [];
+          // Heuristic: prefer a universal/release apk if present, otherwise first .apk
+          let apk = assets.find(a => /\.(apk)$/i.test(a.name) && /universal|release/i.test(a.name))
+                 || assets.find(a => /\.(apk)$/i.test(a.name));
+          if (apk && apk.browser_download_url) {
+            link.href = apk.browser_download_url;
+            if (hint && data.tag_name) hint.textContent = `(${data.tag_name})`;
+            try {
+              localStorage.setItem(cacheKey, JSON.stringify({ url: apk.browser_download_url, tag: data.tag_name || '', ts: Date.now() }));
+            } catch {}
+          }
+        } catch {
+          // ignore, link remains the generic latest page
+        }
+      })();
 
       // Entry editor
       function getDomainsFromUI() {

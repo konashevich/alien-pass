@@ -33,5 +33,16 @@ android/keystore.properties
 android/*.keystore
 android/*.jks
 
+# Android signing files at repo root (do NOT commit secrets)
+/keystore.properties
+/keystore.jks
+*.jks
+*.keystore
+*.p12
+
+# Android packaged artifacts
+*.apk
+*.aab
+
 # Gradle caches (if any at repo root)
 .gradle/
