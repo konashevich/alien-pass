@@ -595,7 +595,9 @@
         }
   let h = XXH.h32(pass0, 1).toString(16);
   let hex = padHex8(h);
-        outEl.value = hex + added;
+    outEl.value = hex + added;
+    // Auto-copy the generated result for convenience
+    await copyOut();
   // zero sensitive intermediates (best-effort)
   pass0 = '';
   h = '';
