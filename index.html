@@ -3,6 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests">
+  <meta http-equiv="Referrer-Policy" content="no-referrer">
+  <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), accelerometer=(), gyroscope=(), clipboard-read=(self), clipboard-write=(self)">
   <title>AlienPass</title>
   <link rel="icon" href="./alienpass.svg" type="image/svg+xml">
   <link rel="shortcut icon" href="./alienpass.svg" type="image/svg+xml">
@@ -302,10 +305,10 @@
     </div>
 
     <section id="tab-generate" role="tabpanel" aria-labelledby="tab-generate-tab">
-    <form id="alienPassForm" novalidate>
+  <form id="alienPassForm" novalidate autocomplete="off">
       <div class="field">
         <label for="mpass">Master password</label>
-        <input type="password" id="mpass" name="mpass" autocomplete="new-password">
+  <input type="password" id="mpass" name="mpass" autocomplete="new-password" spellcheck="false" autocorrect="off" inputmode="text">
       </div>
 
       <div class="field">
@@ -317,7 +320,7 @@
 
       <div class="field" id="confirmField" hidden>
         <label for="confirmPass">Confirm password</label>
-        <input type="password" id="confirmPass" name="confirmPass" disabled>
+  <input type="password" id="confirmPass" name="confirmPass" disabled autocomplete="off" spellcheck="false" autocorrect="off" inputmode="text">
       </div>
 
       <div class="field" id="saveLoginField" hidden>
@@ -577,7 +580,7 @@
         const mpass = mpassEl.value;
         const login = loginEl.value;
         const added = addedEl.value;
-        const pass0 = buildPass0(mpass, login, added);
+        let pass0 = buildPass0(mpass, login, added);
 
         if (newPasEl.checked) {
           if (confirmEl.value !== mpass) {
@@ -590,12 +593,21 @@
           errorEl.textContent = 'Hash library failed to load. Please refresh the page.';
           return;
         }
-        const h = XXH.h32(pass0, 1).toString(16);
-        const hex = padHex8(h);
+  let h = XXH.h32(pass0, 1).toString(16);
+  let hex = padHex8(h);
         outEl.value = hex + added;
+  // zero sensitive intermediates (best-effort)
+  pass0 = '';
+  h = '';
+  hex = '';
         // Optionally save login to Vault when creating a new password
         try {
           if (newPasEl.checked && saveLoginEl && saveLoginEl.checked) {
+            // Safety: never save login if it equals the master password
+            if (login && mpass && login === mpass) {
+              saveLoginEl.checked = false;
+              statusEl.textContent = 'Not saving login that matches the master password.';
+            } else {
             const parsed = parseLogin(login);
             const entry = {
               id: genId(),
@@ -609,6 +621,7 @@
             await ensureDBAndPut(entry);
             await renderVaultLists();
             statusEl.textContent = 'Saved to Vault.';
+            }
           }
         } catch (_) {
           // non-fatal
