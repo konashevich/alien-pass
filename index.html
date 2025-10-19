@@ -311,8 +311,9 @@
     <div class="tabs" role="tablist">
       <button id="tab-generate-tab" class="tab active" data-tab="generate" role="tab" aria-selected="true" aria-controls="tab-generate">Generate</button>
       <button id="tab-vault-tab" class="tab" data-tab="vault" role="tab" aria-selected="false" aria-controls="tab-vault">Vault</button>
-      <button id="tab-settings-tab" class="tab" data-tab="settings" role="tab" aria-selected="false" aria-controls="tab-settings">Settings</button>
-      <button id="tab-about-tab" class="tab" data-tab="about" role="tab" aria-selected="false" aria-controls="tab-about">About</button>
+  <button id="tab-settings-tab" class="tab" data-tab="settings" role="tab" aria-selected="false" aria-controls="tab-settings">Settings</button>
+  <button id="tab-download-tab" class="tab" data-tab="download" role="tab" aria-selected="false" aria-controls="tab-download">Download</button>
+  <button id="tab-about-tab" class="tab" data-tab="about" role="tab" aria-selected="false" aria-controls="tab-about">About</button>
     </div>
 
     <section id="tab-generate" role="tabpanel" aria-labelledby="tab-generate-tab">
@@ -409,6 +410,18 @@
       </div>
     </section>
 
+    <section id="tab-download" role="tabpanel" aria-labelledby="tab-download-tab" hidden>
+      <div class="field mt-12">
+        <section>
+          <h3>Download</h3>
+          <p>
+            Android APK: <a id="latestApkLink" href="https://github.com/konashevich/alien-pass/releases/latest" target="_blank" rel="noopener">Latest release</a>
+            <span id="apkHint" class="ghost"></span>
+          </p>
+        </section>
+      </div>
+    </section>
+
     <section id="tab-about" role="tabpanel" aria-labelledby="tab-about-tab" hidden>
       <div class="field mt-12">
         <section>
@@ -437,11 +450,8 @@
           </blockquote>
         </section>
         <section class="mt-12">
-          <h3>Download</h3>
-          <p>
-            Android APK: <a id="latestApkLink" href="https://github.com/konashevich/alien-pass/releases/latest" target="_blank" rel="noopener">Latest release</a>
-            <span id="apkHint" class="ghost"></span>
-          </p>
+          <h3>Version</h3>
+          <p id="aboutVersion" class="ghost">Loading version…</p>
         </section>
       </div>
     </section>
@@ -540,6 +550,7 @@
         generate: document.getElementById('tab-generate'),
         vault: document.getElementById('tab-vault'),
         settings: document.getElementById('tab-settings'),
+        download: document.getElementById('tab-download'),
         about: document.getElementById('tab-about')
       };
       tabs.forEach(btn => {
@@ -1065,6 +1076,39 @@
       if (aboutYear) {
         aboutYear.textContent = new Date().getFullYear();
       }
+
+      // Show app/web version in About
+      (async function showVersion() {
+        try {
+          const el = document.getElementById('aboutVersion');
+          if (!el) return;
+          const res = await fetch('./app-version.json', { cache: 'no-cache' });
+          if (res.ok) {
+            const v = await res.json();
+            const ver = v?.version || '';
+            const build = (v?.build !== undefined) ? ` (build ${v.build})` : '';
+            if (ver) {
+              el.textContent = `Version ${ver}${build}`;
+              return;
+            }
+          }
+          // Fallback: use latest GitHub Release tag
+          try {
+            const gh = await fetch('https://api.github.com/repos/konashevich/alien-pass/releases/latest', { headers: { 'Accept': 'application/vnd.github+json' } });
+            if (gh.ok) {
+              const info = await gh.json();
+              if (info && info.tag_name) {
+                el.textContent = `Version ${String(info.tag_name).replace(/^v/, '')}`;
+                return;
+              }
+            }
+          } catch {}
+          el.textContent = 'Version: not available';
+        } catch {
+          const el = document.getElementById('aboutVersion');
+          if (el) el.textContent = 'Version: not available';
+        }
+      })();
 
       // Auto-resolve "Latest APK" link from GitHub Releases (graceful fallback)
       (async function updateLatestApkLink() {

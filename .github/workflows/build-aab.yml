@@ -1,6 +1,11 @@
 name: Build AAB (Release)
 
 on:
+  # Tag-driven releases: vYYYY.MM.DD or vYYYY.MM.DD.N
+  push:
+    tags:
+      - 'v*'
+  # Manual trigger remains supported
   workflow_dispatch:
     inputs:
       versionCode:
@@ -17,6 +22,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
@@ -28,6 +38,60 @@ jobs:
 
       - name: Configure Gradle caching
         uses: gradle/actions/setup-gradle@v4
+
+      - name: Calculate version (CalVer + CI run number)
+        id: ver
+        shell: bash
+        env:
+          INPUT_VERSION_CODE: ${{ inputs.versionCode }}
+          INPUT_VERSION_NAME: ${{ inputs.versionName }}
+        run: |
+          set -euo pipefail
+          # Prefer tag name if this is a tag build; else build CalVer from current date
+          if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+            TAG_NAME="${GITHUB_REF_NAME:-}"
+          else
+            TAG_NAME=""
+          fi
+          if [ -n "$TAG_NAME" ]; then
+            # Strip leading 'v' if present
+            VERSION_NAME="${TAG_NAME#v}"
+          else
+            VERSION_NAME="$(date -u +'%Y.%m.%d').${GITHUB_RUN_NUMBER}"
+          fi
+          # Version code must be monotonically increasing integer
+          if [ -n "${INPUT_VERSION_CODE:-}" ]; then
+            VERSION_CODE="${INPUT_VERSION_CODE}"
+          else
+            VERSION_CODE="${GITHUB_RUN_NUMBER}"
+          fi
+          if [ -n "${INPUT_VERSION_NAME:-}" ]; then
+            VERSION_NAME="${INPUT_VERSION_NAME}"
+          fi
+          echo "VERSION_NAME=${VERSION_NAME}" | tee -a "$GITHUB_ENV"
+          echo "VERSION_CODE=${VERSION_CODE}" | tee -a "$GITHUB_ENV"
+          echo "name=${VERSION_NAME}" >> "$GITHUB_OUTPUT"
+          echo "code=${VERSION_CODE}" >> "$GITHUB_OUTPUT"
+
+      - name: Install npm deps
+        run: npm ci || npm install
+
+      - name: Prepare web assets (www/)
+        shell: bash
+        run: |
+          rsync -a --delete \
+            --exclude 'android' \
+            --exclude 'node_modules' \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude 'old' \
+            ./ ./www/
+          # Generate app-version.json consumed by web and app (About screen)
+          printf '{"version":"%s","build":%s,"commit":"%s","date":"%s"}\n' \
+            "${VERSION_NAME}" "${VERSION_CODE}" "${GITHUB_SHA}" "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > www/app-version.json
+          # Copy web assets into Android via Capacitor
+          npx cap copy android
+          npx cap update android
 
       - name: Inject signing keystore
         if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
@@ -45,27 +109,16 @@ jobs:
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
 
-      - name: Optionally bump version
-        if: ${{ inputs.versionCode != '' || inputs.versionName != '' }}
-        shell: bash
-        run: |
-          APP_GRADLE=android/app/build.gradle
-          if [ -n "${{ inputs.versionCode }}" ]; then
-            sed -i "s/versionCode [0-9]\+/versionCode ${{ inputs.versionCode }}/" "$APP_GRADLE"
-          fi
-          if [ -n "${{ inputs.versionName }}" ]; then
-            sed -i "s/versionName \"[^\"]\+\"/versionName \"${{ inputs.versionName }}\"/" "$APP_GRADLE"
-          fi
-          echo "Updated versions:"
-          grep -E "version(Code|Name)" -n "$APP_GRADLE" || true
-
       - name: Build AAB
         working-directory: android
+        env:
+          VERSION_NAME: ${{ env.VERSION_NAME }}
+          VERSION_CODE: ${{ env.VERSION_CODE }}
         run: ./gradlew :app:bundleRelease --stacktrace --no-daemon
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-aab
+          name: app-release-aab-${{ steps.ver.outputs.name }}
           path: android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error

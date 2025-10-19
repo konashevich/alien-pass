@@ -20,8 +20,14 @@ jobs:
       - name: Install npm deps
         run: npm ci || npm install
 
-      - name: Prepare web assets
+      - name: Calculate dev version and prepare web assets
         run: |
+          # Dev CalVer for debug artifacts
+          VERSION_NAME="$(date -u +'%Y.%m.%d').dev.${GITHUB_RUN_NUMBER}"
+          VERSION_CODE="${GITHUB_RUN_NUMBER}"
+          mkdir -p www
+          printf '{"version":"%s","build":%s,"commit":"%s","date":"%s"}\n' \
+            "${VERSION_NAME}" "${VERSION_CODE}" "${GITHUB_SHA}" "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > www/app-version.json
           rsync -a --delete \
             --exclude 'android' \
             --exclude 'node_modules' \
