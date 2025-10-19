@@ -301,6 +301,7 @@
     <div class="tabs" role="tablist">
       <button id="tab-generate-tab" class="tab active" data-tab="generate" role="tab" aria-selected="true" aria-controls="tab-generate">Generate</button>
       <button id="tab-vault-tab" class="tab" data-tab="vault" role="tab" aria-selected="false" aria-controls="tab-vault">Vault</button>
+      <button id="tab-settings-tab" class="tab" data-tab="settings" role="tab" aria-selected="false" aria-controls="tab-settings">Settings</button>
       <button id="tab-about-tab" class="tab" data-tab="about" role="tab" aria-selected="false" aria-controls="tab-about">About</button>
     </div>
 
@@ -337,7 +338,7 @@
 
       <div class="field">
         <label for="added">Added</label>
-        <input type="text" id="added" name="added" autocomplete="off" spellcheck="false" autocorrect="off" value="+Ab">
+        <input type="text" id="added" name="added" autocomplete="off" spellcheck="false" autocorrect="off" placeholder="e.g. +Ab">
       </div>
 
       <div class="field">
@@ -367,6 +368,17 @@
       </div>
       <div id="vaultListFull" class="list mt-12"></div>
       <div id="vaultEmpty" class="ghost mt-12" hidden>No entries yet. Click Add to create one.</div>
+    </section>
+
+    <section id="tab-settings" role="tabpanel" aria-labelledby="tab-settings-tab" hidden>
+      <div class="field mt-12">
+        <label for="defaultSuffix">Default suffix</label>
+        <input type="text" id="defaultSuffix" autocomplete="off" spellcheck="false" autocorrect="off" placeholder="e.g. +Ab">
+        <div class="ghost mt-8">This suffix will auto-fill the Added field on the Generate tab if it's empty.</div>
+      </div>
+      <div class="actions left mt-12">
+        <button id="saveSettingsBtn" class="primary" type="button">Save settings</button>
+      </div>
     </section>
 
     <section id="tab-about" role="tabpanel" aria-labelledby="tab-about-tab" hidden>
@@ -499,6 +511,7 @@
       const tabPanels = {
         generate: document.getElementById('tab-generate'),
         vault: document.getElementById('tab-vault'),
+        settings: document.getElementById('tab-settings'),
         about: document.getElementById('tab-about')
       };
       tabs.forEach(btn => {
@@ -508,6 +521,9 @@
           Object.entries(tabPanels).forEach(([k, el]) => {
             el.hidden = k !== key;
           });
+          if (key === 'generate') {
+            reapplyDefaultSuffixIfEmpty();
+          }
         });
       });
 
@@ -688,12 +704,15 @@
         confirmField.hidden = true;
         saveLoginField.hidden = true;
         outEl.value = '';
+        // Re-apply saved default suffix if Added is empty
+        setTimeout(() => { try { reapplyDefaultSuffixIfEmpty(); } catch {} }, 0);
       });
 
       // ---------------- IndexedDB ----------------
-      const DB_NAME = 'alienpass';
-      const DB_VERSION = 1;
-      const STORE = 'vault';
+  const DB_NAME = 'alienpass';
+  const DB_VERSION = 2; // bumped to add settings store
+  const STORE = 'vault';
+  const STORE_SETTINGS = 'settings';
       let db; // IDBDatabase
 
       function openDB() {
@@ -705,6 +724,9 @@
               const os = d.createObjectStore(STORE, { keyPath: 'id' });
               os.createIndex('by_name', 'name', { unique: false });
               os.createIndex('by_favourite', 'favourite', { unique: false });
+            }
+            if (!d.objectStoreNames.contains(STORE_SETTINGS)) {
+              d.createObjectStore(STORE_SETTINGS, { keyPath: 'key' });
             }
           };
           req.onsuccess = () => { db = req.result; resolve(db); };
@@ -1046,6 +1068,46 @@
         if (!db) await openDB();
       }
 
+      // Settings: store default suffix in IndexedDB
+      function getSetting(key) {
+        return new Promise((resolve, reject) => {
+          try {
+            const store = tx('settings', 'readonly');
+            const req = store.get(key);
+            req.onsuccess = () => resolve(req.result ? req.result.value : null);
+            req.onerror = () => reject(req.error);
+          } catch (e) { resolve(null); }
+        });
+      }
+      function setSetting(key, value) {
+        return new Promise((resolve, reject) => {
+          try {
+            const store = tx('settings', 'readwrite');
+            const req = store.put({ key, value });
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+          } catch (e) { reject(e); }
+        });
+      }
+      async function getDefaultSuffix() { return (await getSetting('defaultSuffix')) || ''; }
+      async function reapplyDefaultSuffixIfEmpty() {
+        try {
+          const el = document.getElementById('added');
+          if (!el) return;
+          if ((el.value || '').trim()) return;
+          await ensureDB();
+          const def = (await getDefaultSuffix()).trim();
+          if (def) el.value = def;
+        } catch {}
+      }
+      async function initSettingsUI() {
+        try {
+          await ensureDB();
+          const inp = document.getElementById('defaultSuffix');
+          if (inp) inp.value = (await getDefaultSuffix()) || '';
+        } catch {}
+      }
+
       // Search handlers
       function debounce(fn, ms) { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); }; }
       const onSearchChange = debounce(() => { renderVaultLists(); }, 100);
@@ -1053,7 +1115,29 @@
       document.getElementById('modalSearch')?.addEventListener('input', onSearchChange);
 
       // Initialize DB and first render
-      openDB().then(renderVaultLists).catch(() => {/* ignore */});
+      openDB().then(async () => {
+        try {
+          await renderVaultLists();
+          await initSettingsUI();
+          await reapplyDefaultSuffixIfEmpty();
+        } catch {}
+      }).catch(() => {/* ignore */});
+
+      const saveSettingsBtnEl = document.getElementById('saveSettingsBtn');
+      if (saveSettingsBtnEl) {
+        saveSettingsBtnEl.addEventListener('click', async () => {
+          try {
+            await ensureDB();
+            const inp = document.getElementById('defaultSuffix');
+            const val = (inp && inp.value ? inp.value : '').trim();
+            await setSetting('defaultSuffix', val);
+            statusEl.textContent = 'Settings saved.';
+            reapplyDefaultSuffixIfEmpty();
+          } catch (e) {
+            statusEl.textContent = 'Failed to save settings.';
+          }
+        });
+      }
     })();
   </script>
 </body>

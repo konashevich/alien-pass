@@ -24,13 +24,16 @@ android {
     }
     signingConfigs {
         release {
-            if (keystoreProperties['storeFile']) {
-                storeFile file(keystoreProperties['storeFile'])
+            def sf = keystoreProperties['storeFile']
+            if (sf && file(sf).exists()) {
+                storeFile file(sf)
                 storePassword keystoreProperties['storePassword']
                 keyAlias keystoreProperties['keyAlias']
                 keyPassword keystoreProperties['keyPassword']
                 enableV3Signing true
                 enableV4Signing true
+            } else {
+                logger.lifecycle("[signing] Keystore file not found or not set. Building unsigned release.")
             }
         }
     }
@@ -38,8 +41,9 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            // Sign release if properties are provided
-            if (project.hasProperty('android.injected.signing.store.file') || keystoreProperties['storeFile']) {
+            // Sign release only if keystore file exists or IDE injected signing config present
+            def sf = keystoreProperties['storeFile']
+            if (project.hasProperty('android.injected.signing.store.file') || (sf && file(sf).exists())) {
                 signingConfig signingConfigs.release
             }
         }
