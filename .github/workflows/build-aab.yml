@@ -1,0 +1,71 @@
+name: Build AAB (Release)
+
+on:
+  workflow_dispatch:
+    inputs:
+      versionCode:
+        description: 'Override versionCode (optional)'
+        required: false
+      versionName:
+        description: 'Override versionName (optional)'
+        required: false
+
+jobs:
+  bundle-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Configure Gradle caching
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Inject signing keystore
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        shell: bash
+        run: |
+          mkdir -p android
+          echo "Writing keystore.jks from secret..."
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/keystore.jks
+          cat > android/keystore.properties <<'EOF'
+          storeFile=keystore.jks
+          storePassword=${{ secrets.ANDROID_KEYSTORE_STORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEYSTORE_ALIAS }}
+          keyPassword=${{ secrets.ANDROID_KEYSTORE_KEY_PASSWORD }}
+          EOF
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+
+      - name: Optionally bump version
+        if: ${{ inputs.versionCode != '' || inputs.versionName != '' }}
+        shell: bash
+        run: |
+          APP_GRADLE=android/app/build.gradle
+          if [ -n "${{ inputs.versionCode }}" ]; then
+            sed -i "s/versionCode [0-9]\+/versionCode ${{ inputs.versionCode }}/" "$APP_GRADLE"
+          fi
+          if [ -n "${{ inputs.versionName }}" ]; then
+            sed -i "s/versionName \"[^\"]\+\"/versionName \"${{ inputs.versionName }}\"/" "$APP_GRADLE"
+          fi
+          echo "Updated versions:"
+          grep -E "version(Code|Name)" -n "$APP_GRADLE" || true
+
+      - name: Build AAB
+        working-directory: android
+        run: ./gradlew :app:bundleRelease --stacktrace --no-daemon
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error

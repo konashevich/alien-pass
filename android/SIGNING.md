@@ -53,3 +53,23 @@ If you don’t remember the store or key passwords, you must retrieve them from 
 ## 6) Play App Signing reminder
 
 If your app uses Play App Signing (recommended), you still upload a signed AAB. Google will manage distribution signing keys. Keep your upload keystore safe—the alias and passwords must match what Play expects for your app.
+
+---
+
+## Build a signed AAB in GitHub Actions (remote build)
+
+If your local machine (e.g., Linux ARM64/aarch64) doesn’t have supported Android SDK CLI tooling, you can build in CI:
+
+1. Add repository secrets (Settings → Secrets and variables → Actions):
+   - `ANDROID_KEYSTORE_BASE64`: base64 of your keystore file (.jks/.keystore)
+   - `ANDROID_KEYSTORE_STORE_PASSWORD`: keystore password
+   - `ANDROID_KEYSTORE_ALIAS`: key alias
+   - `ANDROID_KEYSTORE_KEY_PASSWORD`: key password
+   You can generate base64 on Linux/Mac: `base64 -w0 your-key.jks` (omit `-w0` on macOS: `base64 your-key.jks`)
+
+2. Run the workflow "Build AAB (Release)" from the Actions tab.
+   - Optionally pass `versionCode` and/or `versionName` inputs.
+
+3. Download `app-release.aab` from the workflow artifacts.
+
+The workflow sets up the Android SDK on `ubuntu-latest`, injects the keystore, and runs `:app:bundleRelease`.
