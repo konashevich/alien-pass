@@ -356,6 +356,7 @@
         <select id="algorithm" name="algorithm">
           <option value="xxh32">xxHash32</option>
           <option value="md5m120">MD5 Modified 120-bit</option>
+          <option value="sha256_96">SHA-256/96</option>
         </select>
       </div>
 
@@ -399,6 +400,7 @@
         <select id="defaultAlgorithm">
           <option value="xxh32">xxHash32</option>
           <option value="md5m120">MD5 Modified 120-bit</option>
+          <option value="sha256_96">SHA-256/96</option>
         </select>
         <div class="ghost mt-8">This will preselect the algorithm on the Generate tab.</div>
       </div>
@@ -605,6 +607,11 @@
         hex = (hex || '').toLowerCase();
         return ('00000000' + hex).slice(-8);
       }
+      function toBase64Url(bytes) {
+        let bin = '';
+        for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+        return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/,'');
+      }
 
       // Algorithms registry and implementations
       const ALG = {
@@ -621,6 +628,17 @@
           id: 'md5m120',
           label: 'MD5 Modified 120-bit',
           compute: (s) => md5Modified120(s)
+        },
+        sha256_96: {
+          id: 'sha256_96',
+          label: 'SHA-256/96',
+          compute: async (s) => {
+            const enc = new TextEncoder();
+            const buf = enc.encode(s);
+            const hash = await crypto.subtle.digest('SHA-256', buf);
+            const bytes = new Uint8Array(hash).slice(0, 12); // 96 bits
+            return toBase64Url(bytes); // 16 chars
+          }
         }
       };
 
@@ -764,7 +782,8 @@
         if (!ALG[algId]) algId = 'xxh32';
         let digest = '';
         try {
-          digest = ALG[algId].compute(pass0);
+          const maybe = ALG[algId].compute(pass0);
+          digest = (maybe && typeof maybe.then === 'function') ? await maybe : maybe;
         } catch (e) {
           errorEl.textContent = e && e.message ? e.message : 'Hashing failed.';
           return;
