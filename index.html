@@ -342,9 +342,21 @@
         </div>
       </div>
 
+      <!-- Optional fields shown only when "Save login?" is checked -->
+      <div id="saveExtras" hidden>
+        <div class="field" id="saveNameField">
+          <label for="saveName">Name (optional)</label>
+          <input type="text" id="saveName" autocomplete="off" spellcheck="false" autocorrect="off" inputmode="text">
+        </div>
+        <div class="field" id="saveDomainsField">
+          <label for="saveDomains">Domains (optional, comma-separated)</label>
+          <input type="text" id="saveDomains" placeholder="example.com, example.org" autocomplete="off" spellcheck="false" autocorrect="off" inputmode="text">
+        </div>
+      </div>
+
       <div class="field">
         <label for="login">Login</label>
-        <input type="text" id="login" name="login" autocomplete="username" spellcheck="false" autocorrect="off">
+        <input type="text" id="login" autocomplete="off" spellcheck="false" autocorrect="off" inputmode="text" data-lpignore="true" data-1p-ignore="true" readonly>
       </div>
 
       <div class="field">
@@ -573,6 +585,11 @@
   const confirmField = document.getElementById('confirmField');
   const saveLoginField = document.getElementById('saveLoginField');
   const saveLoginEl = document.getElementById('saveLogin');
+    const saveExtras = document.getElementById('saveExtras');
+    const saveNameField = document.getElementById('saveNameField');
+    const saveDomainsField = document.getElementById('saveDomainsField');
+    const saveNameEl = document.getElementById('saveName');
+    const saveDomainsEl = document.getElementById('saveDomains');
       const loginEl = document.getElementById('login');
       const addedEl = document.getElementById('added');
       const outEl = document.getElementById('out');
@@ -596,6 +613,20 @@
         mpassEl.addEventListener('touchstart', enableEditing, { once: true });
         // Extra safety: ensure no name hints trigger managers
         mpassEl.setAttribute('autocomplete', 'off');
+      }
+
+      // Prevent browser remembering/autofilling the Login field
+      // Similar approach: keep readonly to suppress suggestions until user interacts; also disable autocomplete
+      if (loginEl) {
+        const enableLoginEditing = () => {
+          if (loginEl.hasAttribute('readonly')) loginEl.removeAttribute('readonly');
+        };
+        loginEl.addEventListener('focus', enableLoginEditing, { once: true });
+        loginEl.addEventListener('mousedown', enableLoginEditing, { once: true });
+        loginEl.addEventListener('touchstart', enableLoginEditing, { once: true });
+        loginEl.setAttribute('autocomplete', 'off');
+        // Randomize the name attribute each load to avoid browser remembering previous entries by name
+        try { loginEl.setAttribute('name', 'l_' + Math.random().toString(36).slice(2, 10)); } catch {}
       }
 
       // Vault UI elements
@@ -828,12 +859,17 @@
               statusEl.textContent = 'Not saving login that matches the master password.';
             } else {
             const parsed = parseLogin(login);
+            const rawName = (saveNameEl && saveNameEl.value) ? saveNameEl.value.trim() : '';
+            const rawDomains = (saveDomainsEl && saveDomainsEl.value) ? saveDomainsEl.value.trim() : '';
+            const domainsFromUI = rawDomains ? rawDomains.split(/[\s,]+/).map(s => s.trim()).filter(Boolean) : [];
+            const domains = domainsFromUI.length > 0 ? domainsFromUI : (parsed.isEmail ? [parsed.domain] : (login ? ['default'] : []));
+            const name = rawName || (domains[0] || (login || '(unnamed)'));
             const entry = {
               id: genId(),
-              name: parsed.name || '(unnamed)',
+              name,
               login: login || '',
               suffix: added || '+AB',
-              domains: parsed.isEmail ? [parsed.domain] : (login ? ['default'] : []),
+              domains,
               favourite: false,
               note: ''
             };
@@ -876,18 +912,28 @@
         }
       }
 
-      // Event wiring
+  // Event wiring
       // New password? toggle: show confirm + save-login controls
       newPasEl.addEventListener('change', () => {
         const on = !!newPasEl.checked;
         confirmEl.disabled = !on;
         confirmField.hidden = !on;
         saveLoginField.hidden = !on;
+        if (saveExtras) saveExtras.hidden = !(on && saveLoginEl && saveLoginEl.checked);
         if (!on) {
           confirmEl.value = '';
           saveLoginEl.checked = true;
+          if (saveNameEl) saveNameEl.value = '';
+          if (saveDomainsEl) saveDomainsEl.value = '';
         }
       });
+
+      if (saveLoginEl) {
+        saveLoginEl.addEventListener('change', () => {
+          const showExtras = !!newPasEl.checked && !!saveLoginEl.checked;
+          if (saveExtras) saveExtras.hidden = !showExtras;
+        });
+      }
 
       generateBtn.addEventListener('click', generate);
       copyBtn.addEventListener('click', copyOut);
@@ -897,6 +943,9 @@
         confirmEl.disabled = true;
         confirmField.hidden = true;
         saveLoginField.hidden = true;
+        if (saveExtras) saveExtras.hidden = true;
+        if (saveNameEl) saveNameEl.value = '';
+        if (saveDomainsEl) saveDomainsEl.value = '';
         outEl.value = '';
         // Re-apply saved default suffix if Added is empty
         setTimeout(() => { try { reapplyDefaultSuffixIfEmpty(); } catch {} }, 0);
