@@ -1226,16 +1226,51 @@
           defaultSuffix: (await getDefaultSuffix()) || '',
           defaultAlgorithm: (await getDefaultAlgorithm()) || 'xxh32'
         };
-        const blob = new Blob([JSON.stringify({ version: 2, entries: all, settings }, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        const ts = new Date().toISOString().slice(0,10);
-        a.href = url;
-        a.download = `alienpass-backup-${ts}.json`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
+        const ts = new Date().toISOString().slice(0, 10);
+        const filename = `alienpass-backup-${ts}.json`;
+        const payload = JSON.stringify({ version: 2, entries: all, settings }, null, 2);
+        const blob = new Blob([payload], { type: 'application/json' });
+
+        // 1) Try Web Share API with files (best UX on Android devices)
+        try {
+          if (typeof navigator !== 'undefined' && navigator.share && navigator.canShare) {
+            const file = new File([blob], filename, { type: 'application/json' });
+            if (navigator.canShare({ files: [file] })) {
+              await navigator.share({ files: [file], title: 'AlienPass backup', text: 'AlienPass Vault backup' });
+              statusEl.textContent = 'Backup shared.';
+              return;
+            }
+          }
+        } catch (_) { /* fall through to next strategy */ }
+
+        // 2) Fallback: regular download (works reliably in browsers)
+        try {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+          statusEl.textContent = 'Backup downloaded.';
+          return;
+        } catch (_) { /* ignore */ }
+
+        // 3) Last resort: copy JSON to clipboard or open data URL
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(payload);
+            alert('Backup copied to clipboard. Paste it into a secure note/file and save as ' + filename + '.');
+            return;
+          }
+        } catch (_) { /* ignore */ }
+        try {
+          const dataUrl = 'data:application/json;charset=utf-8,' + encodeURIComponent(payload);
+          window.open(dataUrl, '_blank');
+        } catch (_) {
+          alert('Backup created, but could not be saved automatically.');
+        }
       });
       restoreBtn.addEventListener('click', () => restoreFileInput.click());
       restoreFileInput.addEventListener('change', async (e) => {
