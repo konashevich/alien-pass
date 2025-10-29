@@ -318,10 +318,10 @@
 
     <section id="tab-generate" role="tabpanel" aria-labelledby="tab-generate-tab">
   <form id="alienPassForm" novalidate autocomplete="off">
-      <div class="field">
-        <label for="mpass">Master password</label>
-  <input type="password" id="mpass" name="mpass" autocomplete="new-password" spellcheck="false" autocorrect="off" inputmode="text">
-      </div>
+  <div class="field">
+    <label for="mpass">Master password</label>
+  <input type="password" id="mpass" name="mpass" autocomplete="off" spellcheck="false" autocorrect="off" inputmode="text" readonly>
+  </div>
 
       <div class="field">
         <div class="row">
@@ -566,7 +566,7 @@
         });
       });
 
-      const form = document.getElementById('alienPassForm');
+  const form = document.getElementById('alienPassForm');
       const mpassEl = document.getElementById('mpass');
       const newPasEl = document.getElementById('newPas');
       const confirmEl = document.getElementById('confirmPass');
@@ -583,6 +583,20 @@
       const clearBtn = document.getElementById('clearBtn');
       const openVaultBtn = document.getElementById('openVaultBtn');
   const algorithmEl = document.getElementById('algorithm');
+
+      // Prevent browser password generators/autofill on the Master password field
+      // Technique: keep input readonly initially to suppress generators, remove on user interaction
+      if (mpassEl) {
+        const enableEditing = () => {
+          if (mpassEl.hasAttribute('readonly')) mpassEl.removeAttribute('readonly');
+        };
+        // Remove readonly on genuine user intent
+        mpassEl.addEventListener('focus', enableEditing, { once: true });
+        mpassEl.addEventListener('mousedown', enableEditing, { once: true });
+        mpassEl.addEventListener('touchstart', enableEditing, { once: true });
+        // Extra safety: ensure no name hints trigger managers
+        mpassEl.setAttribute('autocomplete', 'off');
+      }
 
       // Vault UI elements
       const vaultModal = document.getElementById('vaultModal');
