@@ -320,7 +320,7 @@
   <form id="alienPassForm" novalidate autocomplete="off">
   <div class="field">
     <label for="mpass">Master password</label>
-  <input type="password" id="mpass" name="mpass" autocomplete="off" spellcheck="false" autocorrect="off" inputmode="text" readonly>
+  <input type="password" id="mpass" name="mpass" autocomplete="one-time-code" spellcheck="false" autocorrect="off" inputmode="text" readonly>
   </div>
 
       <div class="field">
@@ -403,6 +403,13 @@
     </section>
 
     <section id="tab-settings" role="tabpanel" aria-labelledby="tab-settings-tab" hidden>
+      <div class="field mt-12">
+        <div class="row">
+          <input type="checkbox" id="allowBrowserPwdManager" name="allowBrowserPwdManager">
+          <label for="allowBrowserPwdManager" class="checkbox-label">Allow browser password manager</label>
+        </div>
+        <div class="ghost mt-8">⚠️ Not recommended. The whole idea of this app is to never store passwords. When disabled (default), the browser will not offer to save or autofill the master password.</div>
+      </div>
       <div class="field mt-12">
         <label for="defaultSuffix">Default suffix</label>
   <input type="text" id="defaultSuffix" autocomplete="off" spellcheck="false" autocorrect="off" placeholder="e.g. *ABC">
@@ -603,16 +610,43 @@
 
       // Prevent browser password generators/autofill on the Master password field
       // Technique: keep input readonly initially to suppress generators, remove on user interaction
-      if (mpassEl) {
-        const enableEditing = () => {
-          if (mpassEl.hasAttribute('readonly')) mpassEl.removeAttribute('readonly');
-        };
-        // Remove readonly on genuine user intent
-        mpassEl.addEventListener('focus', enableEditing, { once: true });
-        mpassEl.addEventListener('mousedown', enableEditing, { once: true });
-        mpassEl.addEventListener('touchstart', enableEditing, { once: true });
-        // Extra safety: ensure no name hints trigger managers
-        mpassEl.setAttribute('autocomplete', 'off');
+      // This behavior can be toggled via Settings
+      async function applyPasswordFieldBehavior() {
+        if (!mpassEl) return;
+        try {
+          await ensureDB();
+          const allowPwdManager = await getSetting('allowBrowserPwdManager');
+          
+          if (allowPwdManager === true) {
+            // User wants browser password manager enabled
+            mpassEl.removeAttribute('readonly');
+            mpassEl.setAttribute('autocomplete', 'current-password');
+            mpassEl.setAttribute('name', 'mpass');
+          } else {
+            // Default: prevent browser password manager (security first)
+            const enableEditing = () => {
+              if (mpassEl.hasAttribute('readonly')) mpassEl.removeAttribute('readonly');
+            };
+            // Remove readonly on genuine user intent
+            mpassEl.addEventListener('focus', enableEditing, { once: true });
+            mpassEl.addEventListener('mousedown', enableEditing, { once: true });
+            mpassEl.addEventListener('touchstart', enableEditing, { once: true });
+            // Use one-time-code to prevent password manager
+            mpassEl.setAttribute('autocomplete', 'one-time-code');
+            // Remove name attribute to avoid browser associations
+            mpassEl.removeAttribute('name');
+          }
+        } catch {
+          // Fallback to secure default if DB fails
+          const enableEditing = () => {
+            if (mpassEl.hasAttribute('readonly')) mpassEl.removeAttribute('readonly');
+          };
+          mpassEl.addEventListener('focus', enableEditing, { once: true });
+          mpassEl.addEventListener('mousedown', enableEditing, { once: true });
+          mpassEl.addEventListener('touchstart', enableEditing, { once: true });
+          mpassEl.setAttribute('autocomplete', 'one-time-code');
+          mpassEl.removeAttribute('name');
+        }
       }
 
       // Prevent browser remembering/autofilling the Login field
@@ -1287,7 +1321,8 @@
         const all = await getAllEntries();
         const settings = {
           defaultSuffix: (await getDefaultSuffix()) || '',
-          defaultAlgorithm: (await getDefaultAlgorithm()) || 'xxh32'
+          defaultAlgorithm: (await getDefaultAlgorithm()) || 'xxh32',
+          allowBrowserPwdManager: await getAllowBrowserPwdManager()
         };
         const ts = new Date().toISOString().slice(0, 10);
         const filename = `alienpass-backup-${ts}.json`;
@@ -1356,6 +1391,9 @@
             if (typeof data.settings.defaultAlgorithm === 'string') {
               await setSetting('defaultAlgorithm', data.settings.defaultAlgorithm);
             }
+            if (typeof data.settings.allowBrowserPwdManager === 'boolean') {
+              await setSetting('allowBrowserPwdManager', data.settings.allowBrowserPwdManager);
+            }
           }
           await initSettingsUI();
           await renderVaultLists();
@@ -1415,6 +1453,7 @@
       }
   async function getDefaultSuffix() { return (await getSetting('defaultSuffix')) || ''; }
   async function getDefaultAlgorithm() { return (await getSetting('defaultAlgorithm')) || 'xxh32'; }
+  async function getAllowBrowserPwdManager() { return (await getSetting('allowBrowserPwdManager')) === true; }
       async function reapplyDefaultSuffixIfEmpty() {
         try {
           const el = document.getElementById('added');
@@ -1433,6 +1472,8 @@
           const algSel = document.getElementById('defaultAlgorithm');
           if (algSel) algSel.value = await getDefaultAlgorithm();
           if (algorithmEl) algorithmEl.value = await getDefaultAlgorithm();
+          const pwdMgrCheckbox = document.getElementById('allowBrowserPwdManager');
+          if (pwdMgrCheckbox) pwdMgrCheckbox.checked = await getAllowBrowserPwdManager();
         } catch {}
       }
 
@@ -1448,6 +1489,7 @@
           await renderVaultLists();
           await initSettingsUI();
           await reapplyDefaultSuffixIfEmpty();
+          await applyPasswordFieldBehavior();
         } catch {}
       }).catch(() => {/* ignore */});
 
@@ -1463,6 +1505,11 @@
             const alg = (algSel && algSel.value) ? algSel.value : 'xxh32';
             await setSetting('defaultAlgorithm', ALG[alg] ? alg : 'xxh32');
             if (algorithmEl) algorithmEl.value = await getDefaultAlgorithm();
+            const pwdMgrCheckbox = document.getElementById('allowBrowserPwdManager');
+            const allowPwdMgr = pwdMgrCheckbox ? pwdMgrCheckbox.checked : false;
+            await setSetting('allowBrowserPwdManager', allowPwdMgr);
+            // Re-apply password field behavior with new setting
+            await applyPasswordFieldBehavior();
             statusEl.textContent = 'Settings saved.';
             reapplyDefaultSuffixIfEmpty();
           } catch (e) {
