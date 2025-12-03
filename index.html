@@ -394,6 +394,7 @@
         <button id="backupBtn" class="small" type="button">Backup</button>
         <button id="restoreBtn" class="small" type="button">Restore</button>
         <input type="file" id="restoreFileInput" accept="application/json" hidden>
+        <button id="syncBtn" class="small" type="button" title="Sync with Google Drive">☁️ Sync</button>
       </div>
       <div class="field">
         <input type="text" id="vaultSearch" placeholder="Search name, login, suffix, domains, note">
@@ -424,6 +425,13 @@
         </select>
         <div class="ghost mt-8">This will preselect the algorithm on the Generate tab.</div>
       </div>
+
+      <div class="field mt-12">
+        <label for="googleClientId">Google Client ID (for Sync)</label>
+        <input type="text" id="googleClientId" placeholder="12345...apps.googleusercontent.com" autocomplete="off" spellcheck="false">
+        <div class="ghost mt-8">Required for Google Drive sync. See setup instructions.</div>
+      </div>
+
       <div class="actions left mt-12">
         <button id="saveSettingsBtn" class="primary" type="button">Save settings</button>
       </div>
@@ -495,6 +503,26 @@
       </div>
       <div class="actions">
         <button id="manageVaultBtn" class="small" type="button">Open Vault</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sync Password Modal -->
+  <div id="syncPassModal" class="modal-backdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="syncPassTitle">
+      <header>
+        <strong id="syncPassTitle">Sync Password</strong>
+        <button id="closeSyncPassModal" class="small" type="button">Cancel</button>
+      </header>
+      <div class="content">
+        <p class="desc mb-12">Enter your Master Password to decrypt/encrypt the cloud vault.</p>
+        <div class="field">
+          <input type="password" id="syncMpass" placeholder="Master Password" autocomplete="one-time-code">
+        </div>
+        <div id="syncStatus" class="ghost mt-12"></div>
+      </div>
+      <div class="actions">
+        <button id="doSyncBtn" class="primary" type="button">Start Sync</button>
       </div>
     </div>
   </div>
@@ -987,7 +1015,7 @@
 
       // ---------------- IndexedDB ----------------
   const DB_NAME = 'alienpass';
-  const DB_VERSION = 2; // bumped to add settings store
+  const DB_VERSION = 3; // bumped to add sync fields
   const STORE = 'vault';
   const STORE_SETTINGS = 'settings';
       let db; // IDBDatabase
@@ -1025,6 +1053,7 @@
       }
       function putEntry(entry) {
         return new Promise((resolve, reject) => {
+          entry.updatedAt = Date.now();
           const store = tx(STORE, 'readwrite');
           const req = store.put(entry);
           req.onsuccess = () => resolve();
@@ -1032,11 +1061,24 @@
         });
       }
       function deleteEntry(id) {
-        return new Promise((resolve, reject) => {
-          const store = tx(STORE, 'readwrite');
-          const req = store.delete(id);
-          req.onsuccess = () => resolve();
-          req.onerror = () => reject(req.error);
+        return new Promise(async (resolve, reject) => {
+          try {
+            const store = tx(STORE, 'readwrite');
+            const getReq = store.get(id);
+            getReq.onsuccess = () => {
+              const entry = getReq.result;
+              if (entry) {
+                entry.deleted = true;
+                entry.updatedAt = Date.now();
+                const putReq = store.put(entry);
+                putReq.onsuccess = () => resolve();
+                putReq.onerror = () => reject(putReq.error);
+              } else {
+                resolve();
+              }
+            };
+            getReq.onerror = () => reject(getReq.error);
+          } catch (e) { reject(e); }
         });
       }
 
@@ -1051,7 +1093,9 @@
       }
 
       async function renderVaultLists() {
-        const all = sortEntries(await getAllEntries());
+        const raw = await getAllEntries();
+        const active = raw.filter(e => !e.deleted);
+        const all = sortEntries(active);
         const qFull = (document.getElementById('vaultSearch')?.value || '').trim().toLowerCase();
         const qModal = (document.getElementById('modalSearch')?.value || '').trim().toLowerCase();
         const matches = (e, q) => {
@@ -1413,7 +1457,9 @@
           suffix: typeof e.suffix === 'string' ? e.suffix : '+AB',
           domains: Array.isArray(e.domains) ? e.domains.filter(x => typeof x === 'string') : [],
           favourite: !!e.favourite,
-          note: typeof e.note === 'string' ? e.note : ''
+          note: typeof e.note === 'string' ? e.note : '',
+          updatedAt: typeof e.updatedAt === 'number' ? e.updatedAt : Date.now(),
+          deleted: !!e.deleted
         };
       }
 
@@ -1517,6 +1563,352 @@
           }
         });
       }
+
+      // ---------------- Crypto Service ----------------
+      // Handles PBKDF2 key derivation and AES-GCM encryption for Sync
+      window.CryptoService = {
+        async deriveKey(password, salt) {
+          const enc = new TextEncoder();
+          const keyMaterial = await crypto.subtle.importKey(
+            'raw',
+            enc.encode(password),
+            { name: 'PBKDF2' },
+            false,
+            ['deriveKey']
+          );
+          return crypto.subtle.deriveKey(
+            {
+              name: 'PBKDF2',
+              salt: salt,
+              iterations: 100000,
+              hash: 'SHA-256'
+            },
+            keyMaterial,
+            { name: 'AES-GCM', length: 256 },
+            false,
+            ['encrypt', 'decrypt']
+          );
+        },
+
+        async encryptVault(dataObj, password) {
+          // 1. Generate random salt
+          const salt = crypto.getRandomValues(new Uint8Array(16));
+          // 2. Derive key
+          const key = await this.deriveKey(password, salt);
+          // 3. Generate IV
+          const iv = crypto.getRandomValues(new Uint8Array(12));
+          // 4. Encrypt
+          const enc = new TextEncoder();
+          const encoded = enc.encode(JSON.stringify(dataObj));
+          const ciphertext = await crypto.subtle.encrypt(
+            { name: 'AES-GCM', iv: iv },
+            key,
+            encoded
+          );
+          // 5. Pack: salt + iv + ciphertext
+          // We'll return a Base64 JSON struct for portability
+          return {
+            v: 1,
+            salt: toBase64Url(salt),
+            iv: toBase64Url(iv),
+            data: toBase64Url(new Uint8Array(ciphertext))
+          };
+        },
+
+        async decryptVault(encryptedObj, password) {
+          if (!encryptedObj || !encryptedObj.salt || !encryptedObj.iv || !encryptedObj.data) {
+            throw new Error('Invalid encrypted vault format.');
+          }
+          const salt = fromBase64Url(encryptedObj.salt);
+          const iv = fromBase64Url(encryptedObj.iv);
+          const data = fromBase64Url(encryptedObj.data);
+
+          const key = await this.deriveKey(password, salt);
+
+          try {
+            const decrypted = await crypto.subtle.decrypt(
+              { name: 'AES-GCM', iv: iv },
+              key,
+              data
+            );
+            const dec = new TextDecoder();
+            return JSON.parse(dec.decode(decrypted));
+          } catch (e) {
+            throw new Error('Decryption failed. Wrong password?');
+          }
+        }
+      };
+
+      function fromBase64Url(str) {
+        // Add padding if needed
+        let b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+        while (b64.length % 4) b64 += '=';
+        const bin = atob(b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return bytes;
+      }
+
+      // ---------------- Google Drive Client ----------------
+      window.GoogleDriveClient = {
+        token: null,
+
+        async auth(clientId) {
+          if (this.token) {
+            // Check expiry? For simplicity, assume valid if present in session
+            return this.token;
+          }
+
+          const redirectUri = window.location.origin + window.location.pathname;
+          // Clean hash from redirectUri if present
+          const cleanRedirect = redirectUri.replace(/\/$/, '') || window.location.origin;
+
+          const scope = 'https://www.googleapis.com/auth/drive.appdata';
+          const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(cleanRedirect)}&response_type=token&scope=${encodeURIComponent(scope)}&prompt=select_account`;
+
+          // Using a popup for auth
+          return new Promise((resolve, reject) => {
+            const width = 500, height = 600;
+            const left = (window.screen.width - width) / 2;
+            const top = (window.screen.height - height) / 2;
+            const popup = window.open(url, 'Google Auth', `width=${width},height=${height},top=${top},left=${left}`);
+
+            if (!popup) {
+              reject(new Error('Popup blocked. Please allow popups for this site.'));
+              return;
+            }
+
+            const interval = setInterval(() => {
+              try {
+                if (popup.closed) {
+                  clearInterval(interval);
+                  reject(new Error('Auth popup closed by user.'));
+                }
+                // Check if popup has redirected back to us with token
+                if (popup.location.href.includes('access_token')) {
+                  const params = new URLSearchParams(popup.location.hash.substring(1));
+                  const token = params.get('access_token');
+                  if (token) {
+                    this.token = token;
+                    popup.close();
+                    clearInterval(interval);
+                    resolve(token);
+                  }
+                }
+              } catch (e) {
+                // Cross-origin errors are expected until redirect happens
+              }
+            }, 500);
+          });
+        },
+
+        async listFiles() {
+          const q = "name = 'alienpass.vault' and 'appDataFolder' in parents and trashed = false";
+          const res = await fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${encodeURIComponent(q)}&fields=files(id, name, modifiedTime)`, {
+            headers: { 'Authorization': `Bearer ${this.token}` }
+          });
+          if (!res.ok) throw new Error('Failed to list files: ' + res.statusText);
+          const data = await res.json();
+          return data.files || [];
+        },
+
+        async getFile(fileId) {
+          const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+            headers: { 'Authorization': `Bearer ${this.token}` }
+          });
+          if (!res.ok) throw new Error('Failed to download file.');
+          return res.json();
+        },
+
+        async uploadFile(fileId, contentObj) {
+          const metadata = {
+            name: 'alienpass.vault',
+            mimeType: 'application/json',
+            parents: ['appDataFolder']
+          };
+          const fileContent = JSON.stringify(contentObj);
+
+          const form = new FormData();
+          form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+          form.append('file', new Blob([fileContent], { type: 'application/json' }));
+
+          let url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+          let method = 'POST';
+
+          if (fileId) {
+            // Update existing file
+            url = `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`;
+            method = 'PATCH';
+          }
+
+          const res = await fetch(url, {
+            method: method,
+            headers: { 'Authorization': `Bearer ${this.token}` },
+            body: form
+          });
+
+          if (!res.ok) throw new Error('Upload failed: ' + res.statusText);
+          return res.json();
+        }
+      };
+
+      // ---------------- Sync Manager ----------------
+      window.SyncManager = {
+        async sync(password, updateStatus) {
+          updateStatus('Checking settings...');
+          const clientId = await getSetting('googleClientId');
+          if (!clientId) throw new Error('Please configure Google Client ID in Settings tab.');
+
+          updateStatus('Authenticating...');
+          await GoogleDriveClient.auth(clientId);
+
+          updateStatus('Checking cloud vault...');
+          const files = await GoogleDriveClient.listFiles();
+          let remoteEntries = [];
+          let remoteFileId = null;
+
+          if (files.length > 0) {
+            updateStatus('Downloading cloud vault...');
+            // Pick the last modified one if multiple? Ideally there is only one.
+            remoteFileId = files[0].id;
+            try {
+              const encrypted = await GoogleDriveClient.getFile(remoteFileId);
+              updateStatus('Decrypting...');
+              const decrypted = await CryptoService.decryptVault(encrypted, password);
+              if (decrypted && Array.isArray(decrypted.entries)) {
+                remoteEntries = decrypted.entries;
+              }
+            } catch (e) {
+              // If decryption fails, it might be a different password or corrupt file.
+              // For now, we abort to be safe, rather than overwriting.
+              throw new Error('Cloud vault decryption failed. Incorrect password? ' + e.message);
+            }
+          }
+
+          updateStatus('Merging...');
+          const localEntries = await getAllEntries();
+          const merged = this.smartMerge(localEntries, remoteEntries);
+
+          // Save merged result locally
+          await ensureDB();
+          for (const entry of merged) {
+            // We need to compare with existing local to avoid unnecessary writes?
+            // putEntry is cheap enough.
+            await putEntry(entry);
+          }
+          await renderVaultLists();
+
+          updateStatus('Encrypting & Uploading...');
+          const payload = {
+            version: 1,
+            entries: merged,
+            updatedAt: Date.now()
+          };
+          const encryptedPayload = await CryptoService.encryptVault(payload, password);
+          await GoogleDriveClient.uploadFile(remoteFileId, encryptedPayload);
+
+          updateStatus('Sync complete!');
+        },
+
+        smartMerge(local, remote) {
+          const map = new Map();
+
+          // Add all local
+          for (const e of local) map.set(e.id, e);
+
+          // Merge remote
+          for (const r of remote) {
+            if (map.has(r.id)) {
+              const l = map.get(r.id);
+              // "Latest wins" based on updatedAt
+              const lTime = l.updatedAt || 0;
+              const rTime = r.updatedAt || 0;
+              if (rTime > lTime) {
+                map.set(r.id, r);
+              }
+            } else {
+              map.set(r.id, r);
+            }
+          }
+
+          return Array.from(map.values());
+        }
+      };
+
+      // ---------------- Sync UI Logic ----------------
+      const syncBtn = document.getElementById('syncBtn');
+      const syncPassModal = document.getElementById('syncPassModal');
+      const closeSyncPassModal = document.getElementById('closeSyncPassModal');
+      const doSyncBtn = document.getElementById('doSyncBtn');
+      const syncMpass = document.getElementById('syncMpass');
+      const syncStatus = document.getElementById('syncStatus');
+
+      syncBtn.addEventListener('click', () => {
+        // Pre-fill with main master password if available and not empty
+        if (mpassEl && mpassEl.value) {
+          syncMpass.value = mpassEl.value;
+        } else {
+          syncMpass.value = '';
+        }
+        syncStatus.textContent = '';
+        openModal(syncPassModal);
+        syncMpass.focus();
+      });
+
+      closeSyncPassModal.addEventListener('click', () => closeModal(syncPassModal));
+
+      doSyncBtn.addEventListener('click', async () => {
+        const pass = syncMpass.value;
+        if (!pass) {
+          syncStatus.textContent = 'Password required.';
+          return;
+        }
+
+        doSyncBtn.disabled = true;
+        try {
+          await SyncManager.sync(pass, (msg) => {
+            syncStatus.textContent = msg;
+          });
+          setTimeout(() => {
+            closeModal(syncPassModal);
+            doSyncBtn.disabled = false;
+            syncMpass.value = ''; // clear sensitive
+          }, 1500);
+        } catch (e) {
+          syncStatus.textContent = 'Error: ' + e.message;
+          console.error(e);
+          doSyncBtn.disabled = false;
+        }
+      });
+
+      // Settings: also save Google Client ID
+      async function getGoogleClientId() { return (await getSetting('googleClientId')) || ''; }
+
+      // Update initSettingsUI to load client ID
+      const originalInitSettingsUI = initSettingsUI; // Hooking into existing function flow
+      // We can't easily hook, so let's just augment the global one or call our own loader
+      async function loadSettingsExtended() {
+        await ensureDB();
+        const cidInput = document.getElementById('googleClientId');
+        if (cidInput) cidInput.value = await getGoogleClientId();
+      }
+
+      // Call it on startup
+      loadSettingsExtended();
+
+      // Augment Save Settings handler
+      if (saveSettingsBtnEl) {
+        // We need to attach *another* listener or replace logic.
+        // Adding another listener works fine as they run in order.
+        saveSettingsBtnEl.addEventListener('click', async () => {
+          try {
+             const cidInput = document.getElementById('googleClientId');
+             const cid = (cidInput ? cidInput.value : '').trim();
+             await setSetting('googleClientId', cid);
+          } catch(e) { console.error(e); }
+        });
+      }
+
     })();
   </script>
 </body>
