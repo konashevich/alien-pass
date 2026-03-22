@@ -7,6 +7,7 @@ function getOfflineUrls() {
   return [
     toAbs('index.html'),
     toAbs('xxhash.min.js'),
+    toAbs('alienpass-v2.js'),
     toAbs('alienpass.svg'),
     toAbs('icons/icon-192.svg'),
     toAbs('icons/icon-512.svg'),
