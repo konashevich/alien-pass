@@ -78,7 +78,7 @@
     const derivedBits = await global.crypto.subtle.deriveBits(
       {
         name: 'PBKDF2',
-        salt: encoder.encode(`${login}|${version}`),
+        salt: encoder.encode(`${login},${version}`),
         iterations: ITERATIONS,
         hash: 'SHA-256'
       },
@@ -106,7 +106,7 @@
     return {
       parsed,
       password: formatPassword(hashBytes, parsed),
-      salt: `${login}|${parsed.version}`
+      salt: `${login},${parsed.version}`
     };
   }
 

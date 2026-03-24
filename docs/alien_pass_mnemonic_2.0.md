@@ -81,7 +81,8 @@ AlienPass v2.0 derives entropy with PBKDF2.
 - PRF: `HMAC-SHA256`
 - Iterations: `600000`
 - Password input: `Secret`, encoded as UTF-8 bytes
-- Salt input: `Login + "|" + Version`, encoded as UTF-8 bytes
+- Salt input: `Login + "," + Version`, encoded as UTF-8 bytes
+- Separator: comma only, no alternate separator
 - Output length: `64 bytes`
 
 ### Salt example
@@ -94,7 +95,7 @@ If:
 Then the salt string is:
 
 ```text
-test@me.com|v2
+test@me.com,v2
 ```
 
 The PBKDF2 output is a 64-byte array named `HashBytes`.
