@@ -7,7 +7,7 @@
   const SYMBOLS = '!@_-';
   const MIX_DEFAULT = UPPER + LOWER + NUMS + SYMBOLS;
   const MIX_ABC = UPPER + LOWER + NUMS;
-  const INPUT_REGEX = /^(?:(abc|pin)?(\d{1,2})?(v\d+)?\:)?(.*)$/;
+  const INPUT_REGEX = /^(?:(abc|pin)?(\d{1,2})?\:)?(.*)$/;
   const DEFAULT_LENGTH = 14;
   const MIN_LENGTH = 4;
   const MAX_LENGTH = 64;
@@ -26,8 +26,29 @@
     return {
       alphabet: match[1] || 'default',
       length: clampLength(match[2]),
-      version: match[3] || 'v1',
-      secret: match[4] || ''
+      secret: match[3] || ''
+    };
+  }
+
+  function parseLoginString(loginString) {
+    const normalized = String(loginString || '').trim();
+    const separatorIndex = normalized.lastIndexOf(',');
+
+    if (separatorIndex <= 0 || separatorIndex >= normalized.length - 1) {
+      throw new Error('Login must end with ,<index>, for example email@example.com,1.');
+    }
+
+    const login = normalized.slice(0, separatorIndex).trim();
+    const index = normalized.slice(separatorIndex + 1).trim();
+
+    if (!login || !/^\d+$/.test(index)) {
+      throw new Error('Login must end with ,<index>, for example email@example.com,1.');
+    }
+
+    return {
+      login,
+      index,
+      salt: `${login},${index}`
     };
   }
 
@@ -61,7 +82,7 @@
     return password;
   }
 
-  async function deriveHashBytes(secret, login, version) {
+  async function deriveHashBytes(secret, salt) {
     if (!global.crypto || !global.crypto.subtle) {
       throw new Error('Web Crypto PBKDF2 is unavailable in this environment.');
     }
@@ -78,7 +99,7 @@
     const derivedBits = await global.crypto.subtle.deriveBits(
       {
         name: 'PBKDF2',
-        salt: encoder.encode(`${login},${version}`),
+        salt: encoder.encode(salt),
         iterations: ITERATIONS,
         hash: 'SHA-256'
       },
@@ -91,22 +112,28 @@
 
   async function generatePassword(options) {
     const inputString = String(options && options.inputString ? options.inputString : '').trim();
-    const login = String(options && options.login ? options.login : '').trim();
-    const parsed = parseCommandString(inputString);
+    const loginInput = String(options && options.login ? options.login : '').trim();
 
-    if (!login) {
+    if (!loginInput) {
       throw new Error('Login is required.');
     }
+
+    const parsed = parseCommandString(inputString);
+    const parsedLogin = parseLoginString(loginInput);
 
     if (!parsed.secret) {
       throw new Error('The secret part of the command string cannot be empty.');
     }
 
-    const hashBytes = await deriveHashBytes(parsed.secret, login, parsed.version);
+    const hashBytes = await deriveHashBytes(parsed.secret, parsedLogin.salt);
     return {
-      parsed,
+      parsed: {
+        ...parsed,
+        login: parsedLogin.login,
+        index: parsedLogin.index
+      },
       password: formatPassword(hashBytes, parsed),
-      salt: `${login},${parsed.version}`
+      salt: parsedLogin.salt
     };
   }
 
@@ -137,7 +164,6 @@
       preview: resolveElement(config.preview),
       previewAlpha: resolveElement(config.previewAlpha),
       previewLength: resolveElement(config.previewLength),
-      previewVersion: resolveElement(config.previewVersion),
       resultContainer: resolveElement(config.resultContainer)
     };
 
@@ -180,7 +206,6 @@
 
       if (elements.previewAlpha) elements.previewAlpha.textContent = parsed.alphabet;
       if (elements.previewLength) elements.previewLength.textContent = String(parsed.length);
-      if (elements.previewVersion) elements.previewVersion.textContent = parsed.version;
 
       if (elements.preview) {
         const showPreview = rawValue.length > 0;
@@ -213,7 +238,7 @@
         const output = await generatePassword({ inputString, login });
         elements.result.value = output.password;
         showResultContainer();
-        setStatus(`Password generated for ${output.parsed.version}.`, '');
+        setStatus(`Password generated for index ${output.parsed.index}.`, '');
       } catch (error) {
         elements.result.value = '';
         hideResultContainer();
@@ -289,6 +314,7 @@
     MIX_DEFAULT,
     MIX_ABC,
     parseCommandString,
+    parseLoginString,
     getCharsetForIndex,
     formatPassword,
     deriveHashBytes,

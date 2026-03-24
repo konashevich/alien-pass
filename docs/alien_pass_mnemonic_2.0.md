@@ -15,6 +15,8 @@ The interface is reduced to two inputs:
 - `Login`
 - `InputString`
 
+`Login` must include the numeric index suffix in this form: `BaseLogin,Index`, for example `test@me.com,1`.
+
 `InputString` behaves like a compact command line. The user may enter a short modifier prefix that overrides defaults, then a colon, then the secret mnemonic model.
 
 This design keeps the format precise without checkboxes, sliders, or per-site records.
@@ -24,7 +26,7 @@ This design keeps the format precise without checkboxes, sliders, or per-site re
 `InputString` must be parsed with this regular expression:
 
 ```regex
-^(?:(abc|pin)?(\d{1,2})?(v\d+)?\:)?(.*)$
+^(?:(abc|pin)?(\d{1,2})?\:)?(.*)$
 ```
 
 ### Parsed fields
@@ -38,12 +40,8 @@ This design keeps the format precise without checkboxes, sliders, or per-site re
    - Default: `14`
    - Valid range after parsing: `4` to `64`
 
-3. `Version`
+3. `Secret`
    - Source: capture group 3
-   - Default: `"v1"`
-
-4. `Secret`
-   - Source: capture group 4
    - Required for generation
    - This is the user’s secret mnemonic model, for example `FacebookTower35`
 
@@ -54,22 +52,18 @@ If the colon is absent, the entire input is treated as `Secret`.
 - `abc11:WeirdSiteTower`
   - Length: `11`
   - Alphabet: letters and digits only
-  - Version: `v1`
 
 - `pin4:MyBankTower`
   - Length: `4`
   - Alphabet: digits only
-  - Version: `v1`
 
-- `v2:GmailTower`
+- `GmailTower`
   - Length: `14`
   - Alphabet: default
-  - Version: `v2`
 
 - `AmazonTower`
   - Length: `14`
   - Alphabet: default
-  - Version: `v1`
   - Entire string is the secret
 
 ## Part III. Cryptographic Core
@@ -81,21 +75,20 @@ AlienPass v2.0 derives entropy with PBKDF2.
 - PRF: `HMAC-SHA256`
 - Iterations: `600000`
 - Password input: `Secret`, encoded as UTF-8 bytes
-- Salt input: `Login + "," + Version`, encoded as UTF-8 bytes
+- Salt input: `Login`, encoded as UTF-8 bytes
 - Separator: comma only, no alternate separator
 - Output length: `64 bytes`
 
 ### Salt example
 
-If:
+If the login field is:
 
-- `Login = test@me.com`
-- `Version = v2`
+- `Login = test@me.com,1`
 
 Then the salt string is:
 
 ```text
-test@me.com,v2
+test@me.com,1
 ```
 
 The PBKDF2 output is a 64-byte array named `HashBytes`.

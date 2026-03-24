@@ -591,19 +591,18 @@
           <div class="v2-card">
             <div class="field">
               <label for="v2InputString">Command string</label>
-              <input type="text" id="v2InputString" placeholder="abc12v2:FacebookTower35" autocomplete="off" spellcheck="false">
-              <div class="ghost mt-8">Examples: `AmazonTower`, `v2:GmailTower`, `pin4:MyBankTower`.</div>
+              <input type="text" id="v2InputString" placeholder="abc12:FacebookTower35" autocomplete="off" spellcheck="false">
+              <div class="ghost mt-8">Examples: `AmazonTower`, `abc11:WeirdSiteTower`, `pin4:MyBankTower`.</div>
               <div class="v2-parser-preview mt-12" id="v2ParserPreview" hidden>
                 Alphabet: <strong id="v2PreviewAlpha">default</strong> |
-                Length: <strong id="v2PreviewLength">14</strong> |
-                Version: <strong id="v2PreviewVersion">v1</strong>
+                Length: <strong id="v2PreviewLength">14</strong>
               </div>
             </div>
 
             <div class="field mt-12">
-              <label for="v2Login">Login / Email</label>
-              <input type="text" id="v2Login" placeholder="email@example.com" autocomplete="username" spellcheck="false">
-              <div class="ghost mt-8">Salt format: `Login,Version` (comma only).</div>
+              <label for="v2Login">Login / Email,Index</label>
+              <input type="text" id="v2Login" placeholder="email@example.com,1" autocomplete="username" spellcheck="false">
+              <div class="ghost mt-8">Login format: `Login,Index`.</div>
             </div>
 
             <div class="actions mt-12">
@@ -621,14 +620,14 @@
           <aside class="v2-reference">
             <section>
               <h3>Grammar</h3>
-              <p><code>^(?:(abc|pin)?(\d{1,2})?(v\d+)?\:)?(.*)$</code></p>
+              <p><code>^(?:(abc|pin)?(\d{1,2})?\:)?(.*)$</code></p>
             </section>
             <section>
               <h3>Defaults</h3>
               <ul>
                 <li>Alphabet: <code>default</code></li>
                 <li>Length: <code>14</code></li>
-                <li>Version: <code>v1</code></li>
+                <li>Index: <code>required in Login</code></li>
               </ul>
             </section>
             <section>
@@ -889,7 +888,6 @@
         preview: '#v2ParserPreview',
         previewAlpha: '#v2PreviewAlpha',
         previewLength: '#v2PreviewLength',
-        previewVersion: '#v2PreviewVersion',
         resultContainer: '#v2ResultContainer'
       });
 
