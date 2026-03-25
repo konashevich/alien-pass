@@ -316,35 +316,36 @@
       display: grid;
       gap: 12px;
     }
-    .v2-reference details {
+    .v2-reference .v2-collapsible {
       margin: 0;
     }
-    .v2-reference summary {
+    .v2-reference .v2-collapsible-toggle {
+      appearance: none;
+      width: 100%;
+      padding: 0;
+      border: none;
+      background: transparent;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
       cursor: pointer;
-      list-style: none;
       user-select: none;
     }
-    .v2-reference summary::-webkit-details-marker {
-      display: none;
-    }
-    .v2-reference summary::after {
+    .v2-reference .v2-collapsible-toggle::after {
       content: '▾';
       color: var(--muted);
       font-size: 0.9rem;
       transition: transform 160ms ease;
     }
-    .v2-reference details[open] summary::after {
+    .v2-reference .v2-collapsible.open .v2-collapsible-toggle::after {
       transform: rotate(180deg);
     }
     .v2-reference h3 {
       margin: 0 0 6px;
       font-size: 1rem;
     }
-    .v2-reference summary h3 {
+    .v2-reference .v2-collapsible-toggle h3 {
       margin: 0;
     }
     .v2-reference p,
@@ -704,12 +705,14 @@
           </div>
 
           <aside class="v2-reference">
-            <details id="v2GrammarDetails">
-              <summary>
+            <section id="v2GrammarDetails" class="v2-collapsible">
+              <button id="v2GrammarToggle" class="v2-collapsible-toggle" type="button" aria-expanded="false" aria-controls="v2GrammarContent">
                 <h3>Grammar</h3>
-              </summary>
-              <p><code>^(?:(abc|pin)?(\d{1,2})?\:)?(.*)$</code></p>
-            </details>
+              </button>
+              <div id="v2GrammarContent" hidden>
+                <p><code>^(?:(abc|pin)?(\d{1,2})?\:)?(.*)$</code></p>
+              </div>
+            </section>
             <section>
               <h3>Defaults</h3>
               <ul>
@@ -973,7 +976,19 @@
       });
 
       const v2GrammarDetails = document.getElementById('v2GrammarDetails');
-      if (v2GrammarDetails) v2GrammarDetails.open = false;
+      const v2GrammarToggle = document.getElementById('v2GrammarToggle');
+      const v2GrammarContent = document.getElementById('v2GrammarContent');
+      if (v2GrammarDetails && v2GrammarToggle && v2GrammarContent) {
+        v2GrammarDetails.classList.remove('open');
+        v2GrammarContent.hidden = true;
+        v2GrammarToggle.setAttribute('aria-expanded', 'false');
+        v2GrammarToggle.addEventListener('click', () => {
+          const willOpen = v2GrammarContent.hidden;
+          v2GrammarContent.hidden = !willOpen;
+          v2GrammarDetails.classList.toggle('open', willOpen);
+          v2GrammarToggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        });
+      }
 
   const form = document.getElementById('alienPassForm');
       const mpassEl = document.getElementById('mpass');
