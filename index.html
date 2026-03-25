@@ -222,20 +222,54 @@
       display: inline-flex;
       align-items: center;
       gap: 8px;
+      margin-bottom: 6px;
+    }
+    .label-with-tip label {
+      margin-bottom: 0;
+    }
+    .tip-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
     }
     .tip-icon {
+      appearance: none;
+      background: transparent;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       width: 18px;
+      min-width: 18px;
       height: 18px;
+      padding: 0;
       border: 1px solid var(--input-border);
       border-radius: 999px;
       color: var(--muted);
       font-size: 0.72rem;
       font-weight: 700;
-      cursor: help;
+      line-height: 1;
+      cursor: pointer;
       user-select: none;
+    }
+    .tip-popup {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      z-index: 20;
+      width: min(320px, calc(100vw - 48px));
+      padding: 10px 12px;
+      border: 1px solid var(--input-border);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--bg) 82%, var(--input-bg));
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.28);
+      color: var(--fg);
+      font-size: 0.86rem;
+      line-height: 1.4;
+      display: none;
+      white-space: normal;
+    }
+    .tip-wrap.open .tip-popup {
+      display: block;
     }
     .subtabs {
       display: flex;
@@ -282,9 +316,36 @@
       display: grid;
       gap: 12px;
     }
+    .v2-reference details {
+      margin: 0;
+    }
+    .v2-reference summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      cursor: pointer;
+      list-style: none;
+      user-select: none;
+    }
+    .v2-reference summary::-webkit-details-marker {
+      display: none;
+    }
+    .v2-reference summary::after {
+      content: '▾';
+      color: var(--muted);
+      font-size: 0.9rem;
+      transition: transform 160ms ease;
+    }
+    .v2-reference details[open] summary::after {
+      transform: rotate(180deg);
+    }
     .v2-reference h3 {
       margin: 0 0 6px;
       font-size: 1rem;
+    }
+    .v2-reference summary h3 {
+      margin: 0;
     }
     .v2-reference p,
     .v2-reference li {
@@ -605,10 +666,13 @@
         <div class="v2-layout">
           <div class="v2-card">
             <div class="field">
-              <label for="v2InputString" class="label-with-tip">
-                <span>Command string</span>
-                <span class="tip-icon" tabindex="0" title="Examples: `AmazonTower`, `abc11:WeirdSiteTower`, `pin4:MyBankTower`." aria-label="Examples: `AmazonTower`, `abc11:WeirdSiteTower`, `pin4:MyBankTower`.">i</span>
-              </label>
+              <div class="label-with-tip">
+                <label for="v2InputString">Command string</label>
+                <span class="tip-wrap">
+                  <button class="tip-icon" type="button" aria-label="Show command string examples" aria-expanded="false">i</button>
+                  <span class="tip-popup" role="tooltip">Examples: <code>AmazonTower</code>, <code>abc11:WeirdSiteTower</code>, <code>pin4:MyBankTower</code>.</span>
+                </span>
+              </div>
               <input type="text" id="v2InputString" placeholder="abc12:FacebookTower35" autocomplete="off" spellcheck="false">
               <div class="v2-parser-preview mt-12" id="v2ParserPreview" hidden>
                 Alphabet: <strong id="v2PreviewAlpha">default</strong> |
@@ -617,10 +681,13 @@
             </div>
 
             <div class="field mt-12">
-              <label for="v2Login" class="label-with-tip">
-                <span>Login / Email,Index</span>
-                <span class="tip-icon" tabindex="0" title="Login format: `Login,Index`." aria-label="Login format: `Login,Index`.">i</span>
-              </label>
+              <div class="label-with-tip">
+                <label for="v2Login">Login / Email,Index</label>
+                <span class="tip-wrap">
+                  <button class="tip-icon" type="button" aria-label="Show login format" aria-expanded="false">i</button>
+                  <span class="tip-popup" role="tooltip">Login format: <code>Login,Index</code>.</span>
+                </span>
+              </div>
               <input type="text" id="v2Login" placeholder="email@example.com,1" autocomplete="username" spellcheck="false">
             </div>
 
@@ -637,10 +704,12 @@
           </div>
 
           <aside class="v2-reference">
-            <section>
-              <h3>Grammar</h3>
+            <details>
+              <summary>
+                <h3>Grammar</h3>
+              </summary>
               <p><code>^(?:(abc|pin)?(\d{1,2})?\:)?(.*)$</code></p>
-            </section>
+            </details>
             <section>
               <h3>Defaults</h3>
               <ul>
@@ -872,6 +941,35 @@
       });
       v1Tabs.forEach((button) => {
         button.addEventListener('click', () => setV1Panel(button.dataset.v1Tab));
+      });
+
+      function closeTipPopups(exceptWrap) {
+        document.querySelectorAll('.tip-wrap.open').forEach((wrap) => {
+          if (exceptWrap && wrap === exceptWrap) return;
+          wrap.classList.remove('open');
+          const button = wrap.querySelector('.tip-icon');
+          if (button) button.setAttribute('aria-expanded', 'false');
+        });
+      }
+
+      document.querySelectorAll('.tip-wrap .tip-icon').forEach((button) => {
+        button.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const wrap = button.closest('.tip-wrap');
+          const willOpen = !wrap.classList.contains('open');
+          closeTipPopups(wrap);
+          wrap.classList.toggle('open', willOpen);
+          button.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        });
+      });
+
+      document.addEventListener('click', (event) => {
+        if (!event.target.closest('.tip-wrap')) closeTipPopups();
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') closeTipPopups();
       });
 
   const form = document.getElementById('alienPassForm');
