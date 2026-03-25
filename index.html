@@ -1,11 +1,14 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://api.github.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; connect-src 'self' https://api.github.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests">
   <meta http-equiv="Referrer-Policy" content="no-referrer">
-  <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), accelerometer=(), gyroscope=(), clipboard-read=(self), clipboard-write=(self)">
+  <meta http-equiv="Permissions-Policy"
+    content="geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), accelerometer=(), gyroscope=(), clipboard-read=(self), clipboard-write=(self)">
   <title>AlienPass</title>
   <link rel="icon" href="./alienpass.svg" type="image/svg+xml">
   <link rel="shortcut icon" href="./alienpass.svg" type="image/svg+xml">
@@ -28,6 +31,7 @@
       --error: #b91c1c;
       color-scheme: light dark;
     }
+
     @media (prefers-color-scheme: dark) {
       :root {
         --bg: #0b0b0c;
@@ -42,9 +46,12 @@
         --error: #f87171;
       }
     }
-    html, body {
+
+    html,
+    body {
       height: 100%;
     }
+
     body {
       margin: 0;
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
@@ -52,62 +59,95 @@
       color: var(--fg);
       line-height: 1.5;
     }
+
     .container {
       max-width: 560px;
       margin: 0 auto;
       padding: 24px 16px 48px;
     }
+
     header {
       margin: 8px 0 16px;
     }
+
     h1 {
       font-size: 1.25rem;
       margin: 0 0 4px;
     }
+
     p.desc {
       margin: 0;
       color: var(--muted);
       font-size: 0.95rem;
     }
+
     .credit-quote {
       margin: 0;
       padding-left: 12px;
       border-left: 3px solid var(--input-border);
       color: var(--muted);
     }
+
     .header-actions {
       display: flex;
       gap: 8px;
       align-items: center;
       justify-content: space-between;
     }
-    .brand { display: flex; align-items: center; gap: 8px; }
-    .brand .logo { width: 56px; height: 56px; display: block; }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand .logo {
+      width: 56px;
+      height: 56px;
+      display: block;
+    }
+
     .header-actions .right {
       display: flex;
       align-items: center;
       gap: 8px;
     }
+
     /* Domains editor */
-    .domain-row { display: flex; align-items: center; gap: 8px; }
-    .domain-row input[type="text"] { flex: 1; }
-    .domain-row button.small { white-space: nowrap; }
+    .domain-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .domain-row input[type="text"] {
+      flex: 1;
+    }
+
+    .domain-row button.small {
+      white-space: nowrap;
+    }
+
     form {
       margin-top: 20px;
       display: grid;
       grid-template-columns: 1fr;
       gap: 12px;
     }
+
     label {
       display: block;
       font-weight: 600;
       margin-bottom: 6px;
     }
+
     .field {
       display: flex;
       flex-direction: column;
     }
-    input[type="text"], input[type="password"] {
+
+    input[type="text"],
+    input[type="password"] {
       appearance: none;
       background: var(--input-bg);
       color: var(--fg);
@@ -117,6 +157,7 @@
       font-size: 1rem;
       outline: none;
     }
+
     select {
       appearance: none;
       background: var(--input-bg);
@@ -127,28 +168,37 @@
       font-size: 1rem;
       outline: none;
     }
+
     input[type="text"][readonly] {
       opacity: 0.95;
     }
-    input[type="text"]:focus, input[type="password"]:focus {
+
+    input[type="text"]:focus,
+    input[type="password"]:focus {
       border-color: var(--accent);
       box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
     }
+
     .row {
       display: flex;
       align-items: center;
       gap: 8px;
     }
+
     .checkbox-label {
       margin: 0;
       font-weight: 500;
     }
+
     .actions {
       display: flex;
       gap: 10px;
       margin-top: 6px;
     }
-    button, input[type="button"], input[type="reset"] {
+
+    button,
+    input[type="button"],
+    input[type="reset"] {
       appearance: none;
       background: var(--btn-bg);
       color: var(--btn-fg);
@@ -158,16 +208,20 @@
       font-size: 0.95rem;
       cursor: pointer;
     }
-    button.primary, input.primary[type="button"] {
+
+    button.primary,
+    input.primary[type="button"] {
       background: var(--accent);
       color: #ffffff;
       border-color: var(--accent);
     }
+
     .error {
       color: var(--error);
       font-size: 0.9rem;
       min-height: 1.2em;
     }
+
     footer {
       margin-top: 28px;
       color: var(--muted);
@@ -181,6 +235,7 @@
       margin: 12px 0 8px;
       border-bottom: 1px solid var(--input-border);
     }
+
     .tab {
       appearance: none;
       background: transparent;
@@ -191,10 +246,12 @@
       cursor: pointer;
       font-weight: 600;
     }
+
     .tab.active {
       border-bottom-color: var(--accent);
       color: var(--accent);
     }
+
     .panel-shell {
       margin-top: 18px;
       border: 1px solid var(--input-border);
@@ -202,36 +259,43 @@
       padding: 18px;
       background: color-mix(in srgb, var(--input-bg) 88%, transparent);
     }
+
     .panel-head {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
       gap: 12px;
     }
+
     .panel-head h2 {
       margin: 0;
       font-size: 1.1rem;
     }
+
     .panel-note {
       margin-top: 4px;
       color: var(--muted);
       font-size: 0.92rem;
       max-width: 44rem;
     }
+
     .label-with-tip {
       display: inline-flex;
       align-items: center;
       gap: 8px;
       margin-bottom: 6px;
     }
+
     .label-with-tip label {
       margin-bottom: 0;
     }
+
     .tip-wrap {
       position: relative;
       display: inline-flex;
       align-items: center;
     }
+
     .tip-icon {
       appearance: none;
       background: transparent;
@@ -251,6 +315,7 @@
       cursor: pointer;
       user-select: none;
     }
+
     .tip-popup {
       position: absolute;
       top: calc(100% + 8px);
@@ -268,15 +333,18 @@
       display: none;
       white-space: normal;
     }
+
     .tip-wrap.open .tip-popup {
       display: block;
     }
+
     .subtabs {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       margin: 18px 0 4px;
     }
+
     .subtab {
       appearance: none;
       background: var(--btn-bg);
@@ -287,24 +355,29 @@
       cursor: pointer;
       font-weight: 600;
     }
+
     .subtab.active {
       background: var(--accent);
       color: #ffffff;
       border-color: var(--accent);
     }
+
     .subpanel {
       margin-top: 8px;
     }
+
     .v2-shell {
       display: grid;
       gap: 18px;
     }
+
     .v2-layout {
       display: grid;
       grid-template-columns: 1fr;
       gap: 18px;
       align-items: start;
     }
+
     .v2-card,
     .v2-reference {
       border: 1px solid var(--input-border);
@@ -312,13 +385,16 @@
       padding: 16px;
       background: var(--input-bg);
     }
+
     .v2-reference {
       display: grid;
       gap: 12px;
     }
+
     .v2-reference .v2-collapsible {
       margin: 0;
     }
+
     .v2-reference .v2-collapsible-toggle {
       appearance: none;
       width: 100%;
@@ -332,32 +408,39 @@
       cursor: pointer;
       user-select: none;
     }
+
     .v2-reference .v2-collapsible-toggle::after {
       content: '▾';
       color: var(--muted);
       font-size: 0.9rem;
       transition: transform 160ms ease;
     }
+
     .v2-reference .v2-collapsible.open .v2-collapsible-toggle::after {
       transform: rotate(180deg);
     }
+
     .v2-reference h3 {
       margin: 0 0 6px;
       font-size: 1rem;
     }
+
     .v2-reference .v2-collapsible-toggle h3 {
       margin: 0;
     }
+
     .v2-reference p,
     .v2-reference li {
       margin: 0;
       color: var(--muted);
       font-size: 0.92rem;
     }
+
     .v2-reference ul {
       margin: 0;
       padding-left: 18px;
     }
+
     .v2-parser-preview {
       border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--input-border));
       border-radius: 12px;
@@ -367,27 +450,35 @@
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 0.9rem;
     }
+
     .v2-parser-preview strong {
       color: var(--fg);
     }
+
     .v2-status {
       min-height: 1.3em;
       color: var(--muted);
       font-size: 0.9rem;
     }
+
     .v2-status[data-state="error"] {
       color: var(--error);
     }
+
     .v2-result {
       display: flex;
       gap: 10px;
     }
+
     .v2-result input {
       flex: 1;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       letter-spacing: 0.04em;
     }
-    [hidden] { display: none !important; }
+
+    [hidden] {
+      display: none !important;
+    }
 
     /* Modal */
     .modal-backdrop {
@@ -400,6 +491,7 @@
       padding: 16px;
       z-index: 1000;
     }
+
     .modal {
       background: var(--bg);
       color: var(--fg);
@@ -411,6 +503,7 @@
       display: flex;
       flex-direction: column;
     }
+
     .modal header {
       padding: 12px 16px;
       border-bottom: 1px solid var(--input-border);
@@ -419,21 +512,25 @@
       justify-content: space-between;
       margin: 0;
     }
+
     .modal .content {
       padding: 8px 16px 16px;
       overflow: auto;
     }
+
     .modal .actions {
       padding: 10px 16px;
       border-top: 1px solid var(--input-border);
       display: flex;
       justify-content: flex-end;
     }
+
     .list {
       display: flex;
       flex-direction: column;
       gap: 6px;
     }
+
     .list-item {
       display: flex;
       align-items: center;
@@ -443,6 +540,7 @@
       border-radius: 8px;
       background: var(--input-bg);
     }
+
     .list-item .meta {
       display: flex;
       gap: 10px;
@@ -450,6 +548,7 @@
       color: var(--muted);
       font-size: 0.9rem;
     }
+
     .tag {
       display: inline-block;
       border: 1px solid var(--btn-border);
@@ -458,17 +557,45 @@
       font-size: 0.75rem;
       color: var(--muted);
     }
-    .star { color: #eab308; }
-    .ghost { opacity: 0.7; }
-    .inline-actions { display: flex; gap: 6px; }
-    .small { font-size: 0.85rem; padding: 6px 10px; }
+
+    .star {
+      color: #eab308;
+    }
+
+    .ghost {
+      opacity: 0.7;
+    }
+
+    .inline-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .small {
+      font-size: 0.85rem;
+      padding: 6px 10px;
+    }
 
     /* Utilities */
-    .left { justify-content: flex-start; }
-    .mt-8 { margin-top: 8px; }
-    .mt-12 { margin-top: 12px; }
-  .mb-8 { margin-bottom: 8px; }
-  .mb-12 { margin-bottom: 12px; }
+    .left {
+      justify-content: flex-start;
+    }
+
+    .mt-8 {
+      margin-top: 8px;
+    }
+
+    .mt-12 {
+      margin-top: 12px;
+    }
+
+    .mb-8 {
+      margin-bottom: 8px;
+    }
+
+    .mb-12 {
+      margin-bottom: 12px;
+    }
 
     textarea {
       resize: vertical;
@@ -480,21 +607,67 @@
       font-size: 1rem;
       outline: none;
     }
+
     textarea:focus {
       border-color: var(--accent);
       box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
     }
+
+    .about-section {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid var(--input-border);
+    }
+
+    .about-section:first-child {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: none;
+    }
+
+    .about-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .about-icon {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+      fill: currentColor;
+      opacity: 0.8;
+    }
+
+    .about-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 500;
+      transition: opacity 0.2s;
+    }
+
+    .about-link:hover {
+      opacity: 0.8;
+      text-decoration: underline;
+    }
+
     @media (max-width: 720px) {
       .tabs {
         overflow-x: auto;
         padding-bottom: 2px;
       }
+
       .v2-result {
         flex-direction: column;
       }
     }
   </style>
 </head>
+
 <body>
   <div class="container">
     <header>
@@ -503,17 +676,20 @@
           <img src="./alienpass.svg" alt="AlienPass logo" class="logo" width="56" height="56">
           <div>
             <h1>AlienPass</h1>
-            <p class="desc">Use the legacy v1.0 flow or the isolated v2.0 mnemonic generator during your migration window.</p>
           </div>
         </div>
       </div>
     </header>
 
     <div class="tabs" role="tablist" aria-label="AlienPass versions">
-      <button id="tab-v2-tab" class="tab active" data-tab="v2" role="tab" aria-selected="true" aria-controls="tab-v2">v2.0</button>
-      <button id="tab-v1-tab" class="tab" data-tab="v1" role="tab" aria-selected="false" aria-controls="tab-v1">v1.0</button>
-      <button id="tab-download-tab" class="tab" data-tab="download" role="tab" aria-selected="false" aria-controls="tab-download">Download</button>
-      <button id="tab-about-tab" class="tab" data-tab="about" role="tab" aria-selected="false" aria-controls="tab-about">About</button>
+      <button id="tab-v2-tab" class="tab active" data-tab="v2" role="tab" aria-selected="true"
+        aria-controls="tab-v2">v2.0</button>
+      <button id="tab-v1-tab" class="tab" data-tab="v1" role="tab" aria-selected="false"
+        aria-controls="tab-v1">v1.0</button>
+      <button id="tab-download-tab" class="tab" data-tab="download" role="tab" aria-selected="false"
+        aria-controls="tab-download">Download</button>
+      <button id="tab-about-tab" class="tab" data-tab="about" role="tab" aria-selected="false"
+        aria-controls="tab-about">About</button>
     </div>
 
     <section id="tab-v1" role="tabpanel" aria-labelledby="tab-v1-tab" hidden>
@@ -521,136 +697,149 @@
         <div class="panel-head">
           <div>
             <h2>v1.0</h2>
-            <p class="panel-note">Legacy generator kept intact during the transition. Vault and Settings now live inside this version panel.</p>
+            <p class="panel-note">Legacy generator kept intact during the transition. Vault and Settings now live inside
+              this version panel.</p>
           </div>
           <span class="tag">Transition-safe layout</span>
         </div>
 
         <div class="subtabs" role="tablist" aria-label="v1.0 tools">
-          <button id="v1-generate-tab" class="subtab active" data-v1-tab="generate" role="tab" aria-selected="true" aria-controls="tab-generate">Generate</button>
-          <button id="v1-vault-tab" class="subtab" data-v1-tab="vault" role="tab" aria-selected="false" aria-controls="tab-vault">Vault</button>
-          <button id="v1-settings-tab" class="subtab" data-v1-tab="settings" role="tab" aria-selected="false" aria-controls="tab-settings">Settings</button>
+          <button id="v1-generate-tab" class="subtab active" data-v1-tab="generate" role="tab" aria-selected="true"
+            aria-controls="tab-generate">Generate</button>
+          <button id="v1-vault-tab" class="subtab" data-v1-tab="vault" role="tab" aria-selected="false"
+            aria-controls="tab-vault">Vault</button>
+          <button id="v1-settings-tab" class="subtab" data-v1-tab="settings" role="tab" aria-selected="false"
+            aria-controls="tab-settings">Settings</button>
         </div>
 
         <section id="tab-generate" class="subpanel" role="tabpanel" aria-labelledby="v1-generate-tab">
-  <form id="alienPassForm" novalidate autocomplete="off">
-  <div class="field">
-    <label for="mpass">Master password</label>
-  <input type="password" id="mpass" name="mpass" autocomplete="one-time-code" spellcheck="false" autocorrect="off" inputmode="text" readonly>
-  </div>
+          <form id="alienPassForm" novalidate autocomplete="off">
+            <div class="field">
+              <label for="mpass">Master password</label>
+              <input type="password" id="mpass" name="mpass" autocomplete="one-time-code" spellcheck="false"
+                autocorrect="off" inputmode="text" readonly>
+            </div>
 
-      <div class="field">
-        <div class="row">
-          <input type="checkbox" id="newPas" name="newPas">
-          <label for="newPas" class="checkbox-label">New password?</label>
-        </div>
-      </div>
+            <div class="field">
+              <div class="row">
+                <input type="checkbox" id="newPas" name="newPas">
+                <label for="newPas" class="checkbox-label">New password?</label>
+              </div>
+            </div>
 
-      <div class="field" id="confirmField" hidden>
-        <label for="confirmPass">Confirm password</label>
-  <input type="password" id="confirmPass" name="confirmPass" disabled autocomplete="off" spellcheck="false" autocorrect="off" inputmode="text">
-      </div>
+            <div class="field" id="confirmField" hidden>
+              <label for="confirmPass">Confirm password</label>
+              <input type="password" id="confirmPass" name="confirmPass" disabled autocomplete="off" spellcheck="false"
+                autocorrect="off" inputmode="text">
+            </div>
 
-      <div class="field" id="saveLoginField" hidden>
-        <div class="row">
-          <input type="checkbox" id="saveLogin" name="saveLogin" checked>
-          <label for="saveLogin" class="checkbox-label">Save login?</label>
-        </div>
-      </div>
+            <div class="field" id="saveLoginField" hidden>
+              <div class="row">
+                <input type="checkbox" id="saveLogin" name="saveLogin" checked>
+                <label for="saveLogin" class="checkbox-label">Save login?</label>
+              </div>
+            </div>
 
-      <!-- Optional fields shown only when "Save login?" is checked -->
-      <div id="saveExtras" hidden>
-        <div class="field" id="saveNameField">
-          <label for="saveName">Name (optional)</label>
-          <input type="text" id="saveName" autocomplete="off" spellcheck="false" autocorrect="off" inputmode="text">
-        </div>
-        <div class="field" id="saveDomainsField">
-          <label for="saveDomains">Domains (optional, comma-separated)</label>
-          <input type="text" id="saveDomains" placeholder="example.com, example.org" autocomplete="off" spellcheck="false" autocorrect="off" inputmode="text">
-        </div>
-      </div>
+            <!-- Optional fields shown only when "Save login?" is checked -->
+            <div id="saveExtras" hidden>
+              <div class="field" id="saveNameField">
+                <label for="saveName">Name (optional)</label>
+                <input type="text" id="saveName" autocomplete="off" spellcheck="false" autocorrect="off"
+                  inputmode="text">
+              </div>
+              <div class="field" id="saveDomainsField">
+                <label for="saveDomains">Domains (optional, comma-separated)</label>
+                <input type="text" id="saveDomains" placeholder="example.com, example.org" autocomplete="off"
+                  spellcheck="false" autocorrect="off" inputmode="text">
+              </div>
+            </div>
 
-      <div class="field">
-        <label for="login">Login</label>
-        <input type="text" id="login" autocomplete="off" spellcheck="false" autocorrect="off" inputmode="text" data-lpignore="true" data-1p-ignore="true" readonly>
-      </div>
+            <div class="field">
+              <label for="login">Login</label>
+              <input type="text" id="login" autocomplete="off" spellcheck="false" autocorrect="off" inputmode="text"
+                data-lpignore="true" data-1p-ignore="true" readonly>
+            </div>
 
-      <div class="field">
-        <label for="added">Added</label>
-  <input type="text" id="added" name="added" autocomplete="off" spellcheck="false" autocorrect="off" placeholder="e.g. *ABC">
-      </div>
+            <div class="field">
+              <label for="added">Added</label>
+              <input type="text" id="added" name="added" autocomplete="off" spellcheck="false" autocorrect="off"
+                placeholder="e.g. *ABC">
+            </div>
 
-      <div class="field">
-        <label for="algorithm">Algorithm</label>
-        <select id="algorithm" name="algorithm">
-          <option value="xxh32">xxHash32</option>
-          <option value="md5m120">MD5 Modified 120-bit</option>
-          <option value="sha256_96">SHA-256/96</option>
-        </select>
-      </div>
+            <div class="field">
+              <label for="algorithm">Algorithm</label>
+              <select id="algorithm" name="algorithm">
+                <option value="xxh32">xxHash32</option>
+                <option value="md5m120">MD5 Modified 120-bit</option>
+                <option value="sha256_96">SHA-256/96</option>
+              </select>
+            </div>
 
-      <div class="field">
-        <label for="out">Generated password</label>
-        <input type="text" id="out" name="out" readonly>
-        <div id="error" class="error"></div>
-      </div>
+            <div class="field">
+              <label for="out">Generated password</label>
+              <input type="text" id="out" name="out" readonly>
+              <div id="error" class="error"></div>
+            </div>
 
-      <div class="actions">
-        <input type="button" id="generateBtn" class="primary" value="Generate">
-        <input type="button" id="copyBtn" value="Copy">
-        <input type="reset" id="clearBtn" value="Clear">
-        <input type="button" id="openVaultBtn" class="ghost" value="Vault">
-      </div>
-    </form>
+            <div class="actions">
+              <input type="button" id="generateBtn" class="primary" value="Generate">
+              <input type="button" id="copyBtn" value="Copy">
+              <input type="reset" id="clearBtn" value="Clear">
+              <input type="button" id="openVaultBtn" class="ghost" value="Vault">
+            </div>
+          </form>
         </section>
 
         <section id="tab-vault" class="subpanel" role="tabpanel" aria-labelledby="v1-vault-tab" hidden>
-      <div class="actions left mt-8 mb-12">
-        <button id="addEntryBtn" class="primary small" type="button">Add</button>
-        <button id="backupBtn" class="small" type="button">Backup</button>
-        <button id="restoreBtn" class="small" type="button">Restore</button>
-        <input type="file" id="restoreFileInput" accept="application/json" hidden>
-        <button id="syncBtn" class="small" type="button" title="Sync with Google Drive">☁️ Sync</button>
-      </div>
-      <div class="field">
-        <input type="text" id="vaultSearch" placeholder="Search name, login, suffix, domains, note">
-      </div>
-      <div id="vaultListFull" class="list mt-12"></div>
-      <div id="vaultEmpty" class="ghost mt-12" hidden>No entries yet. Click Add to create one.</div>
+          <div class="actions left mt-8 mb-12">
+            <button id="addEntryBtn" class="primary small" type="button">Add</button>
+            <button id="backupBtn" class="small" type="button">Backup</button>
+            <button id="restoreBtn" class="small" type="button">Restore</button>
+            <input type="file" id="restoreFileInput" accept="application/json" hidden>
+            <button id="syncBtn" class="small" type="button" title="Sync with Google Drive">☁️ Sync</button>
+          </div>
+          <div class="field">
+            <input type="text" id="vaultSearch" placeholder="Search name, login, suffix, domains, note">
+          </div>
+          <div id="vaultListFull" class="list mt-12"></div>
+          <div id="vaultEmpty" class="ghost mt-12" hidden>No entries yet. Click Add to create one.</div>
         </section>
 
         <section id="tab-settings" class="subpanel" role="tabpanel" aria-labelledby="v1-settings-tab" hidden>
-      <div class="field mt-12">
-        <div class="row">
-          <input type="checkbox" id="allowBrowserPwdManager" name="allowBrowserPwdManager">
-          <label for="allowBrowserPwdManager" class="checkbox-label">Allow browser password manager</label>
-        </div>
-        <div class="ghost mt-8">⚠️ Not recommended. The whole idea of this app is to never store passwords. When disabled (default), the browser will not offer to save or autofill the master password.</div>
-      </div>
-      <div class="field mt-12">
-        <label for="defaultSuffix">Default suffix</label>
-  <input type="text" id="defaultSuffix" autocomplete="off" spellcheck="false" autocorrect="off" placeholder="e.g. *ABC">
-        <div class="ghost mt-8">This suffix will auto-fill the Added field on the Generate tab if it's empty.</div>
-      </div>
-      <div class="field mt-12">
-        <label for="defaultAlgorithm">Default algorithm</label>
-        <select id="defaultAlgorithm">
-          <option value="xxh32">xxHash32</option>
-          <option value="md5m120">MD5 Modified 120-bit</option>
-          <option value="sha256_96">SHA-256/96</option>
-        </select>
-        <div class="ghost mt-8">This will preselect the algorithm on the Generate tab.</div>
-      </div>
+          <div class="field mt-12">
+            <div class="row">
+              <input type="checkbox" id="allowBrowserPwdManager" name="allowBrowserPwdManager">
+              <label for="allowBrowserPwdManager" class="checkbox-label">Allow browser password manager</label>
+            </div>
+            <div class="ghost mt-8">⚠️ Not recommended. The whole idea of this app is to never store passwords. When
+              disabled (default), the browser will not offer to save or autofill the master password.</div>
+          </div>
+          <div class="field mt-12">
+            <label for="defaultSuffix">Default suffix</label>
+            <input type="text" id="defaultSuffix" autocomplete="off" spellcheck="false" autocorrect="off"
+              placeholder="e.g. *ABC">
+            <div class="ghost mt-8">This suffix will auto-fill the Added field on the Generate tab if it's empty.</div>
+          </div>
+          <div class="field mt-12">
+            <label for="defaultAlgorithm">Default algorithm</label>
+            <select id="defaultAlgorithm">
+              <option value="xxh32">xxHash32</option>
+              <option value="md5m120">MD5 Modified 120-bit</option>
+              <option value="sha256_96">SHA-256/96</option>
+            </select>
+            <div class="ghost mt-8">This will preselect the algorithm on the Generate tab.</div>
+          </div>
 
-      <div class="field mt-12">
-        <label for="googleClientId">Google Client ID (for Sync)</label>
-        <input type="text" id="googleClientId" placeholder="12345...apps.googleusercontent.com" autocomplete="off" spellcheck="false">
-        <div class="ghost mt-8">Required for Google Drive sync. See setup instructions.</div>
-      </div>
+          <div class="field mt-12">
+            <label for="googleClientId">Google Client ID (for Sync)</label>
+            <input type="text" id="googleClientId" placeholder="12345...apps.googleusercontent.com" autocomplete="off"
+              spellcheck="false">
+            <div class="ghost mt-8">Required for Google Drive sync. See setup instructions.</div>
+          </div>
 
-      <div class="actions left mt-12">
-        <button id="saveSettingsBtn" class="primary" type="button">Save settings</button>
-      </div>
+          <div class="actions left mt-12">
+            <button id="saveSettingsBtn" class="primary" type="button">Save settings</button>
+          </div>
         </section>
       </div>
     </section>
@@ -660,7 +849,8 @@
         <div class="panel-head">
           <div>
             <h2>v2.0</h2>
-            <p class="panel-note">Mnemonic password generator - never store your password anywhere but your mind. This app makes it possible.</p>
+            <p class="panel-note">Mnemonic password generator - never store your password anywhere but your mind. This
+              app makes it possible.</p>
           </div>
         </div>
 
@@ -670,11 +860,14 @@
               <div class="label-with-tip">
                 <label for="v2InputString">Command string</label>
                 <span class="tip-wrap">
-                  <button class="tip-icon" type="button" aria-label="Show command string examples" aria-expanded="false">i</button>
-                  <span class="tip-popup" role="tooltip">Examples: <code>AmazonTower</code>, <code>abc11:WeirdSiteTower</code>, <code>pin4:MyBankTower</code>.</span>
+                  <button class="tip-icon" type="button" aria-label="Show command string examples"
+                    aria-expanded="false">i</button>
+                  <span class="tip-popup" role="tooltip">Examples: <code>AmazonTower</code>,
+                    <code>abc11:WeirdSiteTower</code>, <code>pin4:MyBankTower</code>.</span>
                 </span>
               </div>
-              <input type="text" id="v2InputString" placeholder="abc12:FacebookTower35" autocomplete="off" spellcheck="false">
+              <input type="text" id="v2InputString" placeholder="abc12:FacebookTower35" autocomplete="off"
+                spellcheck="false">
               <div class="v2-parser-preview mt-12" id="v2ParserPreview" hidden>
                 Alphabet: <strong id="v2PreviewAlpha">default</strong> |
                 Length: <strong id="v2PreviewLength">14</strong>
@@ -686,10 +879,12 @@
                 <label for="v2Login">Login / Email,Index</label>
                 <span class="tip-wrap">
                   <button class="tip-icon" type="button" aria-label="Show login format" aria-expanded="false">i</button>
-                  <span class="tip-popup" role="tooltip">Login format: <code>Login,Index</code>. Example: <code>email@example.com,1</code>.</span>
+                  <span class="tip-popup" role="tooltip">Login format: <code>Login,Index</code>. Example:
+                    <code>email@example.com,1</code>.</span>
                 </span>
               </div>
-              <input type="text" id="v2Login" placeholder="email@example.com,1" autocomplete="username" spellcheck="false">
+              <input type="text" id="v2Login" placeholder="email@example.com,1" autocomplete="username"
+                spellcheck="false">
             </div>
 
             <div class="actions mt-12">
@@ -706,7 +901,8 @@
 
           <aside class="v2-reference">
             <section id="v2GrammarDetails" class="v2-collapsible">
-              <button id="v2GrammarToggle" class="v2-collapsible-toggle" type="button" aria-expanded="false" aria-controls="v2GrammarContent">
+              <button id="v2GrammarToggle" class="v2-collapsible-toggle" type="button" aria-expanded="false"
+                aria-controls="v2GrammarContent">
                 <h3>Grammar</h3>
               </button>
               <div id="v2GrammarContent" hidden>
@@ -746,7 +942,8 @@
         <section>
           <h3>Download</h3>
           <p>
-            Android APK: <a id="latestApkLink" href="https://github.com/konashevich/alien-pass/releases/latest" target="_blank" rel="noopener">Latest release</a>
+            Android APK: <a id="latestApkLink" href="https://github.com/konashevich/alien-pass/releases/latest"
+              target="_blank" rel="noopener">Latest release</a>
             <span id="apkHint" class="ghost"></span>
           </p>
         </section>
@@ -755,31 +952,36 @@
 
     <section id="tab-about" role="tabpanel" aria-labelledby="tab-about-tab" hidden>
       <div class="field mt-12">
-        <section>
+        <section class="about-section">
           <h3>How to use</h3>
           <p>
             Use the v1.0 tab for the legacy generator, Vault, and Settings. Use the v2.0 tab for the temporary mnemonic
             command-string generator based on the new specification. Vault backup and restore remain inside v1.0.
           </p>
         </section>
-        <section class="mt-12">
+
+        <section class="about-section">
           <h3>Author</h3>
-          <p>
-            © <span id="aboutYear"></span> Oleksii Konashevych.
-            Website: <a href="https://oleksii.konashevych.com" target="_blank" rel="noopener">oleksii.konashevych.com</a>
-          </p>
+          <p>© <span id="aboutYear"></span> Oleksii Konashevych</p>
+          <div class="about-item">
+            <a href="https://oleksii.konashevych.com" target="_blank" rel="noopener" class="about-link" title="Visit Website">
+              <svg class="about-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+              oleksii.konashevych.com
+            </a>
+          </div>
         </section>
-        <section class="mt-12">
-          <h3>Credits</h3>
-          <p>
-            This app uses xxHash (XXH32) for hashing.
-            Project page: <a href="https://github.com/Cyan4973/xxHash" target="_blank" rel="noopener">github.com/Cyan4973/xxHash</a>.
-          </p>
-          <blockquote class="credit-quote">
-            xxHash is an Extremely fast Hash algorithm, running at RAM speed limits.
-          </blockquote>
+
+        <section class="about-section">
+          <h3>GitHub Project</h3>
+          <div class="about-item">
+            <a href="https://github.com/konashevich/alien-pass" target="_blank" rel="noopener" class="about-link" title="View Source on GitHub">
+              <svg class="about-icon" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"></path></svg>
+              github.com/konashevich/alien-pass
+            </a>
+          </div>
         </section>
-        <section class="mt-12">
+
+        <section class="about-section">
           <h3>Version</h3>
           <p id="aboutVersion" class="ghost">Loading version…</p>
         </section>
@@ -862,7 +1064,8 @@
             </div>
           </div>
           <div class="field">
-            <label for="entryFavourite" class="checkbox-label"><input type="checkbox" id="entryFavourite"> Favourite</label>
+            <label for="entryFavourite" class="checkbox-label"><input type="checkbox" id="entryFavourite">
+              Favourite</label>
           </div>
           <div class="field">
             <label for="entryNote">Note</label>
@@ -887,12 +1090,12 @@
   </script>
 
   <script>
-    (function() {
+    (function () {
       // PWA: register service worker in browsers only (skip inside native WebViews)
       const isNativeWebView = typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ReactNativeWebView);
       if ('serviceWorker' in navigator && !isNativeWebView) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js').catch(() => {/* ignore */});
+          navigator.serviceWorker.register('./sw.js').catch(() => {/* ignore */ });
         });
       }
       // ---------------- Tabs ----------------
@@ -989,18 +1192,18 @@
         });
       }
 
-  const form = document.getElementById('alienPassForm');
+      const form = document.getElementById('alienPassForm');
       const mpassEl = document.getElementById('mpass');
       const newPasEl = document.getElementById('newPas');
       const confirmEl = document.getElementById('confirmPass');
-  const confirmField = document.getElementById('confirmField');
-  const saveLoginField = document.getElementById('saveLoginField');
-  const saveLoginEl = document.getElementById('saveLogin');
-    const saveExtras = document.getElementById('saveExtras');
-    const saveNameField = document.getElementById('saveNameField');
-    const saveDomainsField = document.getElementById('saveDomainsField');
-    const saveNameEl = document.getElementById('saveName');
-    const saveDomainsEl = document.getElementById('saveDomains');
+      const confirmField = document.getElementById('confirmField');
+      const saveLoginField = document.getElementById('saveLoginField');
+      const saveLoginEl = document.getElementById('saveLogin');
+      const saveExtras = document.getElementById('saveExtras');
+      const saveNameField = document.getElementById('saveNameField');
+      const saveDomainsField = document.getElementById('saveDomainsField');
+      const saveNameEl = document.getElementById('saveName');
+      const saveDomainsEl = document.getElementById('saveDomains');
       const loginEl = document.getElementById('login');
       const addedEl = document.getElementById('added');
       const outEl = document.getElementById('out');
@@ -1010,7 +1213,7 @@
       const copyBtn = document.getElementById('copyBtn');
       const clearBtn = document.getElementById('clearBtn');
       const openVaultBtn = document.getElementById('openVaultBtn');
-  const algorithmEl = document.getElementById('algorithm');
+      const algorithmEl = document.getElementById('algorithm');
 
       window.AlienPassV2.init({
         input: '#v2InputString',
@@ -1033,7 +1236,7 @@
         try {
           await ensureDB();
           const allowPwdManager = await getSetting('allowBrowserPwdManager');
-          
+
           if (allowPwdManager === true) {
             // User wants browser password manager enabled
             mpassEl.removeAttribute('readonly');
@@ -1077,7 +1280,7 @@
         loginEl.addEventListener('touchstart', enableLoginEditing, { once: true });
         loginEl.setAttribute('autocomplete', 'off');
         // Randomize the name attribute each load to avoid browser remembering previous entries by name
-        try { loginEl.setAttribute('name', 'l_' + Math.random().toString(36).slice(2, 10)); } catch {}
+        try { loginEl.setAttribute('name', 'l_' + Math.random().toString(36).slice(2, 10)); } catch { }
       }
 
       // Vault UI elements
@@ -1102,13 +1305,13 @@
       const entryName = document.getElementById('entryName');
       const entryLogin = document.getElementById('entryLogin');
       const entrySuffix = document.getElementById('entrySuffix');
-  const entryDomainsList = document.getElementById('entryDomainsList');
-  const addDomainBtn = document.getElementById('addDomainBtn');
+      const entryDomainsList = document.getElementById('entryDomainsList');
+      const addDomainBtn = document.getElementById('addDomainBtn');
       const entryFavourite = document.getElementById('entryFavourite');
       const entryNote = document.getElementById('entryNote');
       const entryError = document.getElementById('entryError');
       const saveEntryBtn = document.getElementById('saveEntryBtn');
-  const aboutYear = document.getElementById('aboutYear');
+      const aboutYear = document.getElementById('aboutYear');
 
       function padHex8(hex) {
         hex = (hex || '').toLowerCase();
@@ -1117,7 +1320,7 @@
       function toBase64Url(bytes) {
         let bin = '';
         for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-        return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/,'');
+        return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
       }
 
       // Algorithms registry and implementations
@@ -1162,15 +1365,15 @@
           }
           return (lResult ^ lX8 ^ lY8);
         }
-        function F(x,y,z){ return (x & y) | ((~x) & z); }
-        function G(x,y,z){ return (x & z) | (y & (~z)); }
-        function H(x,y,z){ return (x ^ y ^ z); }
-        function I(x,y,z){ return (y ^ (x | (~z))); }
-        function FF(a,b,c,d,x,s,ac){ a = AU(a, AU(AU(F(b,c,d), x), ac)); return AU(RL(a,s), b); }
-        function GG(a,b,c,d,x,s,ac){ a = AU(a, AU(AU(G(b,c,d), x), ac)); return AU(RL(a,s), b); }
-        function HH(a,b,c,d,x,s,ac){ a = AU(a, AU(AU(H(b,c,d), x), ac)); return AU(RL(a,s), b); }
-        function II(a,b,c,d,x,s,ac){ a = AU(a, AU(AU(I(b,c,d), x), ac)); return AU(RL(a,s), b); }
-        function toWordArray(str){
+        function F(x, y, z) { return (x & y) | ((~x) & z); }
+        function G(x, y, z) { return (x & z) | (y & (~z)); }
+        function H(x, y, z) { return (x ^ y ^ z); }
+        function I(x, y, z) { return (y ^ (x | (~z))); }
+        function FF(a, b, c, d, x, s, ac) { a = AU(a, AU(AU(F(b, c, d), x), ac)); return AU(RL(a, s), b); }
+        function GG(a, b, c, d, x, s, ac) { a = AU(a, AU(AU(G(b, c, d), x), ac)); return AU(RL(a, s), b); }
+        function HH(a, b, c, d, x, s, ac) { a = AU(a, AU(AU(H(b, c, d), x), ac)); return AU(RL(a, s), b); }
+        function II(a, b, c, d, x, s, ac) { a = AU(a, AU(AU(I(b, c, d), x), ac)); return AU(RL(a, s), b); }
+        function toWordArray(str) {
           const lMessageLength = str.length;
           const lNumberOfWords_temp1 = lMessageLength + 8;
           const lNumberOfWords_temp2 = (lNumberOfWords_temp1 - (lNumberOfWords_temp1 % 64)) / 64;
@@ -1197,7 +1400,7 @@
           while (v) { rc += itoa64.charAt(v & 0x3f); v >>>= 6; }
           return rc;
         }
-        function utf8(str){
+        function utf8(str) {
           str = str.replace(/\r\n/g, "\n");
           let utf = "";
           for (let n = 0; n < str.length; n++) {
@@ -1208,45 +1411,45 @@
           }
           return utf;
         }
-        const S11=7, S12=12, S13=17, S14=22,
-              S21=5, S22=9 , S23=14, S24=20,
-              S31=4, S32=11, S33=16, S34=23,
-              S41=6, S42=10, S43=15, S44=21;
+        const S11 = 7, S12 = 12, S13 = 17, S14 = 22,
+          S21 = 5, S22 = 9, S23 = 14, S24 = 20,
+          S31 = 4, S32 = 11, S33 = 16, S34 = 23,
+          S41 = 6, S42 = 10, S43 = 15, S44 = 21;
         let a = 0x67452301, b = 0xEFCDAB89, c = 0x98BADCFE, d = 0x10325476;
         const x = toWordArray(utf8(input));
         for (let k = 0; k < x.length; k += 16) {
-          const AA=a, BB=b, CC=c, DD=d;
-          a=FF(a,b,c,d,x[k+0], S11,0xD76AA478); d=FF(d,a,b,c,x[k+1], S12,0xE8C7B756);
-          c=FF(c,d,a,b,x[k+2], S13,0x242070DB); b=FF(b,c,d,a,x[k+3], S14,0xC1BDCEEE);
-          a=FF(a,b,c,d,x[k+4], S11,0xF57C0FAF); d=FF(d,a,b,c,x[k+5], S12,0x4787C62A);
-          c=FF(c,d,a,b,x[k+6], S13,0xA8304613); b=FF(b,c,d,a,x[k+7], S14,0xFD469501);
-          a=FF(a,b,c,d,x[k+8], S11,0x698098D8); d=FF(d,a,b,c,x[k+9], S12,0x8B44F7AF);
-          c=FF(c,d,a,b,x[k+10],S13,0xFFFF5BB1); b=FF(b,c,d,a,x[k+11],S14,0x895CD7BE);
-          a=FF(a,b,c,d,x[k+12],S11,0x6B901122); d=FF(d,a,b,c,x[k+13],S12,0xFD987193);
-          c=FF(c,d,a,b,x[k+14],S13,0xA679438E); b=FF(b,c,d,a,x[k+15],S14,0x49B40821);
-          a=GG(a,b,c,d,x[k+1], S21,0xF61E2562); d=GG(d,a,b,c,x[k+6], S22,0xC040B340);
-          c=GG(c,d,a,b,x[k+11],S23,0x265E5A51); b=GG(b,c,d,a,x[k+0], S24,0xE9B6C7AA);
-          a=GG(a,b,c,d,x[k+5], S21,0xD62F105D); d=GG(d,a,b,c,x[k+10],S22,0x02441453);
-          c=GG(c,d,a,b,x[k+15],S23,0xD8A1E681); b=GG(b,c,d,a,x[k+4], S24,0xE7D3FBC8);
-          a=GG(a,b,c,d,x[k+9], S21,0x21E1CDE6); d=GG(d,a,b,c,x[k+14],S22,0xC33707D6);
-          c=GG(c,d,a,b,x[k+3], S23,0xF4D50D87); b=GG(b,c,d,a,x[k+8], S24,0x455A14ED);
-          a=GG(a,b,c,d,x[k+13],S21,0xA9E3E905); d=GG(d,a,b,c,x[k+2], S22,0xFCEFA3F8);
-          c=GG(c,d,a,b,x[k+7], S23,0x676F02D9); b=GG(b,c,d,a,x[k+12],S24,0x8D2A4C8A);
-          a=HH(a,b,c,d,x[k+5], S31,0xFFFA3942); d=HH(d,a,b,c,x[k+8], S32,0x8771F681);
-          c=HH(c,d,a,b,x[k+11],S33,0x6D9D6122); b=HH(b,c,d,a,x[k+14],S34,0xFDE5380C);
-          a=HH(a,b,c,d,x[k+1], S31,0xA4BEEA44); d=HH(d,a,b,c,x[k+4], S32,0x4BDECFA9);
-          c=HH(c,d,a,b,x[k+7], S33,0xF6BB4B60); b=HH(b,c,d,a,x[k+10],S34,0x04881D05);
-          a=HH(a,b,c,d,x[k+13],S31,0x289B7EC6); d=HH(d,a,b,c,x[k+0], S32,0xEAA127FA);
-          c=HH(c,d,a,b,x[k+3], S33,0xD4EF3085); b=HH(b,c,d,a,x[k+6], S34,0x04881D05);
-          a=HH(a,b,c,d,x[k+9], S31,0xD9D4D039); d=HH(d,a,b,c,x[k+12],S32,0xE6DB99E5);
-          c=HH(c,d,a,b,x[k+15],S33,0x1FA27CF8); b=HH(b,c,d,a,x[k+2], S34,0xC4AC5665);
-          a=II(a,b,c,d,x[k+0], S41,0xF4292244); d=II(d,a,b,c,x[k+7], S42,0x432AFF97);
-          c=II(c,d,a,b,x[k+14],S43,0xAB9423A7); b=II(b,c,d,a,x[k+5], S44,0xFC93A039);
-          a=II(a,b,c,d,x[k+12],S41,0x655B59C3); d=II(d,a,b,c,x[k+3], S42,0x8F0CCC92);
-          c=II(c,d,a,b,x[k+10],S43,0xFFEFF47D); b=II(b,c,d,a,x[k+1], S44,0x85845DD1);
-          a=II(a,b,c,d,x[k+8], S41,0x6FA87E4F); d=II(d,a,b,c,x[k+15], S42,0xFE2CE6E0);
-          c=II(c,d,a,b,x[k+6], S43,0xA3014314); b=II(b,c,d,a,x[k+13],S44,0x4E0811A1);
-          a=AU(a, AA); b=AU(b, BB); c=AU(c, CC); d=AU(d, DD);
+          const AA = a, BB = b, CC = c, DD = d;
+          a = FF(a, b, c, d, x[k + 0], S11, 0xD76AA478); d = FF(d, a, b, c, x[k + 1], S12, 0xE8C7B756);
+          c = FF(c, d, a, b, x[k + 2], S13, 0x242070DB); b = FF(b, c, d, a, x[k + 3], S14, 0xC1BDCEEE);
+          a = FF(a, b, c, d, x[k + 4], S11, 0xF57C0FAF); d = FF(d, a, b, c, x[k + 5], S12, 0x4787C62A);
+          c = FF(c, d, a, b, x[k + 6], S13, 0xA8304613); b = FF(b, c, d, a, x[k + 7], S14, 0xFD469501);
+          a = FF(a, b, c, d, x[k + 8], S11, 0x698098D8); d = FF(d, a, b, c, x[k + 9], S12, 0x8B44F7AF);
+          c = FF(c, d, a, b, x[k + 10], S13, 0xFFFF5BB1); b = FF(b, c, d, a, x[k + 11], S14, 0x895CD7BE);
+          a = FF(a, b, c, d, x[k + 12], S11, 0x6B901122); d = FF(d, a, b, c, x[k + 13], S12, 0xFD987193);
+          c = FF(c, d, a, b, x[k + 14], S13, 0xA679438E); b = FF(b, c, d, a, x[k + 15], S14, 0x49B40821);
+          a = GG(a, b, c, d, x[k + 1], S21, 0xF61E2562); d = GG(d, a, b, c, x[k + 6], S22, 0xC040B340);
+          c = GG(c, d, a, b, x[k + 11], S23, 0x265E5A51); b = GG(b, c, d, a, x[k + 0], S24, 0xE9B6C7AA);
+          a = GG(a, b, c, d, x[k + 5], S21, 0xD62F105D); d = GG(d, a, b, c, x[k + 10], S22, 0x02441453);
+          c = GG(c, d, a, b, x[k + 15], S23, 0xD8A1E681); b = GG(b, c, d, a, x[k + 4], S24, 0xE7D3FBC8);
+          a = GG(a, b, c, d, x[k + 9], S21, 0x21E1CDE6); d = GG(d, a, b, c, x[k + 14], S22, 0xC33707D6);
+          c = GG(c, d, a, b, x[k + 3], S23, 0xF4D50D87); b = GG(b, c, d, a, x[k + 8], S24, 0x455A14ED);
+          a = GG(a, b, c, d, x[k + 13], S21, 0xA9E3E905); d = GG(d, a, b, c, x[k + 2], S22, 0xFCEFA3F8);
+          c = GG(c, d, a, b, x[k + 7], S23, 0x676F02D9); b = GG(b, c, d, a, x[k + 12], S24, 0x8D2A4C8A);
+          a = HH(a, b, c, d, x[k + 5], S31, 0xFFFA3942); d = HH(d, a, b, c, x[k + 8], S32, 0x8771F681);
+          c = HH(c, d, a, b, x[k + 11], S33, 0x6D9D6122); b = HH(b, c, d, a, x[k + 14], S34, 0xFDE5380C);
+          a = HH(a, b, c, d, x[k + 1], S31, 0xA4BEEA44); d = HH(d, a, b, c, x[k + 4], S32, 0x4BDECFA9);
+          c = HH(c, d, a, b, x[k + 7], S33, 0xF6BB4B60); b = HH(b, c, d, a, x[k + 10], S34, 0x04881D05);
+          a = HH(a, b, c, d, x[k + 13], S31, 0x289B7EC6); d = HH(d, a, b, c, x[k + 0], S32, 0xEAA127FA);
+          c = HH(c, d, a, b, x[k + 3], S33, 0xD4EF3085); b = HH(b, c, d, a, x[k + 6], S34, 0x04881D05);
+          a = HH(a, b, c, d, x[k + 9], S31, 0xD9D4D039); d = HH(d, a, b, c, x[k + 12], S32, 0xE6DB99E5);
+          c = HH(c, d, a, b, x[k + 15], S33, 0x1FA27CF8); b = HH(b, c, d, a, x[k + 2], S34, 0xC4AC5665);
+          a = II(a, b, c, d, x[k + 0], S41, 0xF4292244); d = II(d, a, b, c, x[k + 7], S42, 0x432AFF97);
+          c = II(c, d, a, b, x[k + 14], S43, 0xAB9423A7); b = II(b, c, d, a, x[k + 5], S44, 0xFC93A039);
+          a = II(a, b, c, d, x[k + 12], S41, 0x655B59C3); d = II(d, a, b, c, x[k + 3], S42, 0x8F0CCC92);
+          c = II(c, d, a, b, x[k + 10], S43, 0xFFEFF47D); b = II(b, c, d, a, x[k + 1], S44, 0x85845DD1);
+          a = II(a, b, c, d, x[k + 8], S41, 0x6FA87E4F); d = II(d, a, b, c, x[k + 15], S42, 0xFE2CE6E0);
+          c = II(c, d, a, b, x[k + 6], S43, 0xA3014314); b = II(b, c, d, a, x[k + 13], S44, 0x4E0811A1);
+          a = AU(a, AA); b = AU(b, BB); c = AU(c, CC); d = AU(d, DD);
         }
         return b64Lost2(a) + b64Lost2(b) + b64Lost2(c) + b64Lost2(d);
       }
@@ -1296,8 +1499,8 @@
           return;
         }
         outEl.value = (digest || '') + (added || '');
-    // Auto-copy the generated result for convenience
-    await copyOut();
+        // Auto-copy the generated result for convenience
+        await copyOut();
         // zero sensitive intermediates (best-effort)
         pass0 = '';
         digest = '';
@@ -1309,24 +1512,24 @@
               saveLoginEl.checked = false;
               statusEl.textContent = 'Not saving login that matches the master password.';
             } else {
-            const parsed = parseLogin(login);
-            const rawName = (saveNameEl && saveNameEl.value) ? saveNameEl.value.trim() : '';
-            const rawDomains = (saveDomainsEl && saveDomainsEl.value) ? saveDomainsEl.value.trim() : '';
-            const domainsFromUI = rawDomains ? rawDomains.split(/[\s,]+/).map(s => s.trim()).filter(Boolean) : [];
-            const domains = domainsFromUI.length > 0 ? domainsFromUI : (parsed.isEmail ? [parsed.domain] : (login ? ['default'] : []));
-            const name = rawName || (domains[0] || (login || '(unnamed)'));
-            const entry = {
-              id: genId(),
-              name,
-              login: login || '',
-              suffix: added || '+AB',
-              domains,
-              favourite: false,
-              note: ''
-            };
-            await ensureDBAndPut(entry);
-            await renderVaultLists();
-            statusEl.textContent = 'Saved to Vault.';
+              const parsed = parseLogin(login);
+              const rawName = (saveNameEl && saveNameEl.value) ? saveNameEl.value.trim() : '';
+              const rawDomains = (saveDomainsEl && saveDomainsEl.value) ? saveDomainsEl.value.trim() : '';
+              const domainsFromUI = rawDomains ? rawDomains.split(/[\s,]+/).map(s => s.trim()).filter(Boolean) : [];
+              const domains = domainsFromUI.length > 0 ? domainsFromUI : (parsed.isEmail ? [parsed.domain] : (login ? ['default'] : []));
+              const name = rawName || (domains[0] || (login || '(unnamed)'));
+              const entry = {
+                id: genId(),
+                name,
+                login: login || '',
+                suffix: added || '+AB',
+                domains,
+                favourite: false,
+                note: ''
+              };
+              await ensureDBAndPut(entry);
+              await renderVaultLists();
+              statusEl.textContent = 'Saved to Vault.';
             }
           }
         } catch (_) {
@@ -1363,7 +1566,7 @@
         }
       }
 
-  // Event wiring
+      // Event wiring
       // New password? toggle: show confirm + save-login controls
       newPasEl.addEventListener('change', () => {
         const on = !!newPasEl.checked;
@@ -1399,14 +1602,14 @@
         if (saveDomainsEl) saveDomainsEl.value = '';
         outEl.value = '';
         // Re-apply saved default suffix if Added is empty
-        setTimeout(() => { try { reapplyDefaultSuffixIfEmpty(); } catch {} }, 0);
+        setTimeout(() => { try { reapplyDefaultSuffixIfEmpty(); } catch { } }, 0);
       });
 
       // ---------------- IndexedDB ----------------
-  const DB_NAME = 'alienpass';
-  const DB_VERSION = 3; // bumped to add sync fields
-  const STORE = 'vault';
-  const STORE_SETTINGS = 'settings';
+      const DB_NAME = 'alienpass';
+      const DB_VERSION = 3; // bumped to add sync fields
+      const STORE = 'vault';
+      const STORE_SETTINGS = 'settings';
       let db; // IDBDatabase
 
       function openDB() {
@@ -1630,11 +1833,11 @@
                 return;
               }
             }
-          } catch {}
-          el.textContent = 'Version: not available';
+          } catch { }
+          el.textContent = 'Version v2.0.0';
         } catch {
           const el = document.getElementById('aboutVersion');
-          if (el) el.textContent = 'Version: not available';
+          if (el) el.textContent = 'Version v2.0.0';
         }
       })();
 
@@ -1661,13 +1864,13 @@
           const assets = Array.isArray(data.assets) ? data.assets : [];
           // Heuristic: prefer a universal/release apk if present, otherwise first .apk
           let apk = assets.find(a => /\.(apk)$/i.test(a.name) && /universal|release/i.test(a.name))
-                 || assets.find(a => /\.(apk)$/i.test(a.name));
+            || assets.find(a => /\.(apk)$/i.test(a.name));
           if (apk && apk.browser_download_url) {
             link.href = apk.browser_download_url;
             if (hint && data.tag_name) hint.textContent = `(${data.tag_name})`;
             try {
               localStorage.setItem(cacheKey, JSON.stringify({ url: apk.browser_download_url, tag: data.tag_name || '', ts: Date.now() }));
-            } catch {}
+            } catch { }
           }
         } catch {
           // ignore, link remains the generic latest page
@@ -1711,7 +1914,7 @@
         entryName.value = data?.name || '';
         entryLogin.value = data?.login || '';
         entrySuffix.value = data?.suffix || '+AB';
-  setDomainsUI(data?.domains || []);
+        setDomainsUI(data?.domains || []);
         entryFavourite.checked = !!data?.favourite;
         entryNote.value = data?.note || '';
         entryError.textContent = '';
@@ -1856,7 +2059,7 @@
       }
 
       function escapeHtml(s) {
-        return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+        return (s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[c]));
       }
 
       async function ensureDB() {
@@ -1884,9 +2087,9 @@
           } catch (e) { reject(e); }
         });
       }
-  async function getDefaultSuffix() { return (await getSetting('defaultSuffix')) || ''; }
-  async function getDefaultAlgorithm() { return (await getSetting('defaultAlgorithm')) || 'xxh32'; }
-  async function getAllowBrowserPwdManager() { return (await getSetting('allowBrowserPwdManager')) === true; }
+      async function getDefaultSuffix() { return (await getSetting('defaultSuffix')) || ''; }
+      async function getDefaultAlgorithm() { return (await getSetting('defaultAlgorithm')) || 'xxh32'; }
+      async function getAllowBrowserPwdManager() { return (await getSetting('allowBrowserPwdManager')) === true; }
       async function reapplyDefaultSuffixIfEmpty() {
         try {
           const el = document.getElementById('added');
@@ -1895,7 +2098,7 @@
           await ensureDB();
           const def = (await getDefaultSuffix()).trim();
           if (def) el.value = def;
-        } catch {}
+        } catch { }
       }
       async function initSettingsUI() {
         try {
@@ -1907,7 +2110,7 @@
           if (algorithmEl) algorithmEl.value = await getDefaultAlgorithm();
           const pwdMgrCheckbox = document.getElementById('allowBrowserPwdManager');
           if (pwdMgrCheckbox) pwdMgrCheckbox.checked = await getAllowBrowserPwdManager();
-        } catch {}
+        } catch { }
       }
 
       // Search handlers
@@ -1923,8 +2126,8 @@
           await initSettingsUI();
           await reapplyDefaultSuffixIfEmpty();
           await applyPasswordFieldBehavior();
-        } catch {}
-      }).catch(() => {/* ignore */});
+        } catch { }
+      }).catch(() => {/* ignore */ });
 
       const saveSettingsBtnEl = document.getElementById('saveSettingsBtn');
       if (saveSettingsBtnEl) {
@@ -2289,14 +2492,15 @@
         // Adding another listener works fine as they run in order.
         saveSettingsBtnEl.addEventListener('click', async () => {
           try {
-             const cidInput = document.getElementById('googleClientId');
-             const cid = (cidInput ? cidInput.value : '').trim();
-             await setSetting('googleClientId', cid);
-          } catch(e) { console.error(e); }
+            const cidInput = document.getElementById('googleClientId');
+            const cid = (cidInput ? cidInput.value : '').trim();
+            await setSetting('googleClientId', cid);
+          } catch (e) { console.error(e); }
         });
       }
 
     })();
   </script>
 </body>
+
 </html>
