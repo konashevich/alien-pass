@@ -655,6 +655,11 @@
       text-decoration: underline;
     }
 
+    .masked-input {
+      -webkit-text-security: disc !important;
+      text-security: disc !important;
+    }
+
     @media (max-width: 720px) {
       .tabs {
         overflow-x: auto;
@@ -859,15 +864,18 @@
             <div class="field">
               <div class="label-with-tip">
                 <label for="v2InputString">Command string</label>
-                <span class="tip-wrap">
-                  <button class="tip-icon" type="button" aria-label="Show command string examples"
-                    aria-expanded="false">i</button>
-                  <span class="tip-popup" role="tooltip">Examples: <code>AmazonTower</code>,
-                    <code>abc11:WeirdSiteTower</code>, <code>pin4:MyBankTower</code>.</span>
-                </span>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <span class="tip-wrap">
+                    <button class="tip-icon" type="button" aria-label="Show command string examples"
+                      aria-expanded="false">i</button>
+                    <span class="tip-popup" role="tooltip">Examples: <code>AmazonTower</code>,
+                      <code>abc11:WeirdSiteTower</code>, <code>pin4:MyBankTower</code>.</span>
+                  </span>
+                  <button id="v2ToggleMask" class="tip-icon" type="button" title="Show/Hide command string">👁️</button>
+                </div>
               </div>
-              <input type="text" id="v2InputString" placeholder="abc12:FacebookTower35" autocomplete="off"
-                spellcheck="false">
+              <input type="text" id="v2InputString" class="masked-input" placeholder="abc12:FacebookTower35"
+                autocomplete="off" spellcheck="false">
               <div class="v2-parser-preview mt-12" id="v2ParserPreview" hidden>
                 Alphabet: <strong id="v2PreviewAlpha">default</strong> |
                 Length: <strong id="v2PreviewLength">14</strong>
@@ -1227,6 +1235,15 @@
         previewLength: '#v2PreviewLength',
         resultContainer: '#v2ResultContainer'
       });
+
+      // v2.0 Command String masking toggle (unprefixed CSS masking)
+      const v2InputString = document.getElementById('v2InputString');
+      const v2ToggleMask = document.getElementById('v2ToggleMask');
+      if (v2InputString && v2ToggleMask) {
+        v2ToggleMask.addEventListener('click', () => {
+          v2InputString.classList.toggle('masked-input');
+        });
+      }
 
       // Prevent browser password generators/autofill on the Master password field
       // Technique: keep input readonly initially to suppress generators, remove on user interaction
