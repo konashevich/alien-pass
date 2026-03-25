@@ -711,32 +711,31 @@
               </button>
               <div id="v2GrammarContent" hidden>
                 <p><code>^(?:(abc|pin)?(\d{1,2})?\:)?(.*)$</code></p>
+                <section>
+                  <h3>Defaults</h3>
+                  <ul>
+                    <li>Alphabet: <code>default</code></li>
+                    <li>Length: <code>14</code></li>
+                    <li>Index: <code>required in Login</code></li>
+                  </ul>
+                </section>
+                <section>
+                  <h3>PBKDF2 core</h3>
+                  <ul>
+                    <li><code>HMAC-SHA256</code></li>
+                    <li><code>600000</code> iterations</li>
+                    <li><code>64</code> output bytes</li>
+                  </ul>
+                </section>
+                <section>
+                  <h3>Formatting rules</h3>
+                  <ul>
+                    <li><code>default</code>: upper, lower, digit, symbol, then mixed</li>
+                    <li><code>abc</code>: upper, lower, digit, then mixed letters and digits</li>
+                    <li><code>pin</code>: digits only</li>
+                  </ul>
+                </section>
               </div>
-            </section>
-            <section>
-              <h3>Defaults</h3>
-              <ul>
-                <li>Alphabet: <code>default</code></li>
-                <li>Length: <code>14</code></li>
-                <li>Index: <code>required in Login</code></li>
-              </ul>
-            </section>
-            <section>
-              <h3>PBKDF2 core</h3>
-              <ul>
-                <li><code>HMAC-SHA256</code></li>
-                <li><code>600000</code> iterations</li>
-                <li><code>64</code> output bytes</li>
-              </ul>
-            </section>
-            <section>
-              <h3>Formatting rules</h3>
-              <ul>
-                <li><code>default</code>: upper, lower, digit, symbol, then mixed</li>
-                <li><code>abc</code>: upper, lower, digit, then mixed letters and digits</li>
-                <li><code>pin</code>: digits only</li>
-              </ul>
-            </section>
           </aside>
         </div>
       </div>
