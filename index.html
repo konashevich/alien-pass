@@ -409,7 +409,8 @@
         padding-bottom: 2px;
       }
       .v2-layout {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr) minmax(180px, 0.82fr);
+        gap: 12px;
       }
       .v2-result {
         flex-direction: column;
@@ -584,7 +585,6 @@
             <h2>v2.0</h2>
             <p class="panel-note">Independent mnemonic command-string generator for the temporary password-rotation window.</p>
           </div>
-          <span class="tag">Isolated code path</span>
         </div>
 
         <div class="v2-layout">
