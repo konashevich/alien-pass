@@ -685,7 +685,7 @@
                 <label for="v2Login">Login / Email,Index</label>
                 <span class="tip-wrap">
                   <button class="tip-icon" type="button" aria-label="Show login format" aria-expanded="false">i</button>
-                  <span class="tip-popup" role="tooltip">Login format: <code>Login,Index</code>.</span>
+                  <span class="tip-popup" role="tooltip">Login format: <code>Login,Index</code>. Example: <code>email@example.com,1</code>.</span>
                 </span>
               </div>
               <input type="text" id="v2Login" placeholder="email@example.com,1" autocomplete="username" spellcheck="false">
@@ -704,7 +704,7 @@
           </div>
 
           <aside class="v2-reference">
-            <details>
+            <details id="v2GrammarDetails">
               <summary>
                 <h3>Grammar</h3>
               </summary>
@@ -971,6 +971,9 @@
       document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') closeTipPopups();
       });
+
+      const v2GrammarDetails = document.getElementById('v2GrammarDetails');
+      if (v2GrammarDetails) v2GrammarDetails.open = false;
 
   const form = document.getElementById('alienPassForm');
       const mpassEl = document.getElementById('mpass');
