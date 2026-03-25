@@ -218,6 +218,25 @@
       font-size: 0.92rem;
       max-width: 44rem;
     }
+    .label-with-tip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .tip-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border: 1px solid var(--input-border);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: help;
+      user-select: none;
+    }
     .subtabs {
       display: flex;
       flex-wrap: wrap;
@@ -248,7 +267,7 @@
     }
     .v2-layout {
       display: grid;
-      grid-template-columns: minmax(0, 1.35fr) minmax(240px, 0.85fr);
+      grid-template-columns: 1fr;
       gap: 18px;
       align-items: start;
     }
@@ -407,10 +426,6 @@
       .tabs {
         overflow-x: auto;
         padding-bottom: 2px;
-      }
-      .v2-layout {
-        grid-template-columns: minmax(0, 1fr) minmax(180px, 0.82fr);
-        gap: 12px;
       }
       .v2-result {
         flex-direction: column;
@@ -583,16 +598,18 @@
         <div class="panel-head">
           <div>
             <h2>v2.0</h2>
-            <p class="panel-note">Independent mnemonic command-string generator for the temporary password-rotation window.</p>
+            <p class="panel-note">Mnemonic password generator - never store your password anywhere but your mind. This app makes it possible.</p>
           </div>
         </div>
 
         <div class="v2-layout">
           <div class="v2-card">
             <div class="field">
-              <label for="v2InputString">Command string</label>
+              <label for="v2InputString" class="label-with-tip">
+                <span>Command string</span>
+                <span class="tip-icon" tabindex="0" title="Examples: `AmazonTower`, `abc11:WeirdSiteTower`, `pin4:MyBankTower`." aria-label="Examples: `AmazonTower`, `abc11:WeirdSiteTower`, `pin4:MyBankTower`.">i</span>
+              </label>
               <input type="text" id="v2InputString" placeholder="abc12:FacebookTower35" autocomplete="off" spellcheck="false">
-              <div class="ghost mt-8">Examples: `AmazonTower`, `abc11:WeirdSiteTower`, `pin4:MyBankTower`.</div>
               <div class="v2-parser-preview mt-12" id="v2ParserPreview" hidden>
                 Alphabet: <strong id="v2PreviewAlpha">default</strong> |
                 Length: <strong id="v2PreviewLength">14</strong>
@@ -600,9 +617,11 @@
             </div>
 
             <div class="field mt-12">
-              <label for="v2Login">Login / Email,Index</label>
+              <label for="v2Login" class="label-with-tip">
+                <span>Login / Email,Index</span>
+                <span class="tip-icon" tabindex="0" title="Login format: `Login,Index`." aria-label="Login format: `Login,Index`.">i</span>
+              </label>
               <input type="text" id="v2Login" placeholder="email@example.com,1" autocomplete="username" spellcheck="false">
-              <div class="ghost mt-8">Login format: `Login,Index`.</div>
             </div>
 
             <div class="actions mt-12">
