@@ -156,8 +156,12 @@
   function init(config) {
     const elements = {
       input: resolveElement(config.input),
+      repeatInput: resolveElement(config.repeatInput),
+      repeatField: resolveElement(config.repeatField),
+      newPassword: resolveElement(config.newPassword),
       login: resolveElement(config.login),
       generate: resolveElement(config.generate),
+      clear: resolveElement(config.clear),
       result: resolveElement(config.result),
       copy: resolveElement(config.copy),
       status: resolveElement(config.status),
@@ -214,6 +218,63 @@
       }
     }
 
+    function stringsMatch() {
+      if (!elements.newPassword || !elements.newPassword.checked) return true;
+      if (!elements.repeatInput) return true;
+      return elements.input.value === elements.repeatInput.value;
+    }
+
+    function validateMatchingStrings(options) {
+      if (!elements.newPassword || !elements.newPassword.checked || !elements.repeatInput) {
+        return true;
+      }
+
+      const shouldNotify = !options || options.notify !== false;
+      const matches = stringsMatch();
+
+      if (!matches && shouldNotify) {
+        setStatus('Command string and Repeat Command string do not match.', 'error');
+      } else if (matches && elements.status && elements.status.dataset.state === 'error' &&
+        elements.status.textContent === 'Command string and Repeat Command string do not match.') {
+        setStatus('', '');
+      }
+
+      return matches;
+    }
+
+    function syncNewPasswordUi() {
+      const enabled = !!(elements.newPassword && elements.newPassword.checked);
+
+      if (elements.repeatField) {
+        elements.repeatField.hidden = !enabled;
+      }
+
+      if (elements.repeatInput) {
+        elements.repeatInput.disabled = !enabled;
+        if (!enabled) elements.repeatInput.value = '';
+      }
+
+      validateMatchingStrings({ notify: false });
+    }
+
+    function resetForm() {
+      busy = false;
+      elements.input.value = '';
+      if (elements.repeatInput) elements.repeatInput.value = '';
+      if (elements.newPassword) elements.newPassword.checked = false;
+      elements.login.value = '';
+      elements.result.value = '';
+      hideResultContainer();
+      setStatus('', '');
+      if (elements.generate) {
+        elements.generate.disabled = false;
+        setButtonLabel(elements.generate, generateLabel);
+      }
+      syncNewPasswordUi();
+      updatePreview();
+      elements.input.focus();
+    }
+
     async function handleGenerate() {
       if (busy) return;
 
@@ -224,6 +285,13 @@
         elements.result.value = '';
         hideResultContainer();
         setStatus('Enter both the command string and the login.', 'error');
+        return;
+      }
+
+      if (!validateMatchingStrings()) {
+        elements.result.value = '';
+        hideResultContainer();
+        if (elements.repeatInput) elements.repeatInput.focus();
         return;
       }
 
@@ -276,13 +344,31 @@
     }
 
     elements.input.addEventListener('input', updatePreview);
+    elements.input.addEventListener('blur', () => validateMatchingStrings({ notify: true }));
     elements.generate.addEventListener('click', handleGenerate);
+
+    if (elements.newPassword) {
+      elements.newPassword.addEventListener('change', syncNewPasswordUi);
+    }
+
+    if (elements.repeatInput) {
+      elements.repeatInput.addEventListener('blur', () => validateMatchingStrings({ notify: true }));
+      elements.repeatInput.addEventListener('input', () => {
+        if (elements.status && elements.status.dataset.state === 'error') {
+          validateMatchingStrings({ notify: false });
+        }
+      });
+    }
+
+    if (elements.clear) {
+      elements.clear.addEventListener('click', resetForm);
+    }
 
     if (elements.copy) {
       elements.copy.addEventListener('click', handleCopy);
     }
 
-    [elements.input, elements.login].forEach((element) => {
+    [elements.input, elements.repeatInput, elements.login].filter(Boolean).forEach((element) => {
       element.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') {
           event.preventDefault();
@@ -293,10 +379,12 @@
 
     updatePreview();
     hideResultContainer();
+    syncNewPasswordUi();
 
     return {
       handleGenerate,
       handleCopy,
+      resetForm,
       updatePreview,
       generatePassword
     };

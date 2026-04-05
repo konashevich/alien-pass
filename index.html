@@ -883,6 +883,21 @@
             </div>
 
             <div class="field mt-12">
+              <label class="checkbox-label" for="v2NewPassword">
+                <input type="checkbox" id="v2NewPassword">
+                New password
+              </label>
+            </div>
+
+            <div class="field mt-12" id="v2RepeatField" hidden>
+              <div class="label-with-tip">
+                <label for="v2RepeatInputString">Repeat Command string</label>
+              </div>
+              <input type="text" id="v2RepeatInputString" class="masked-input" placeholder="Enter the same command string again"
+                autocomplete="off" spellcheck="false">
+            </div>
+
+            <div class="field mt-12">
               <div class="label-with-tip">
                 <label for="v2Login">Login / Email,Index</label>
                 <span class="tip-wrap">
@@ -897,6 +912,7 @@
 
             <div class="actions mt-12">
               <button id="v2GenerateBtn" class="primary" type="button">Generate Password</button>
+              <button id="v2ClearBtn" type="button">Clear</button>
             </div>
 
             <div id="v2Status" class="v2-status mt-12" aria-live="polite"></div>
@@ -1225,8 +1241,12 @@
 
       window.AlienPassV2.init({
         input: '#v2InputString',
+        repeatInput: '#v2RepeatInputString',
+        repeatField: '#v2RepeatField',
+        newPassword: '#v2NewPassword',
         login: '#v2Login',
         generate: '#v2GenerateBtn',
+        clear: '#v2ClearBtn',
         result: '#v2PasswordResult',
         copy: '#v2CopyBtn',
         status: '#v2Status',
@@ -1238,10 +1258,14 @@
 
       // v2.0 Command String masking toggle (unprefixed CSS masking)
       const v2InputString = document.getElementById('v2InputString');
+      const v2RepeatInputString = document.getElementById('v2RepeatInputString');
       const v2ToggleMask = document.getElementById('v2ToggleMask');
       if (v2InputString && v2ToggleMask) {
         v2ToggleMask.addEventListener('click', () => {
           v2InputString.classList.toggle('masked-input');
+          if (v2RepeatInputString) {
+            v2RepeatInputString.classList.toggle('masked-input');
+          }
         });
       }
 
