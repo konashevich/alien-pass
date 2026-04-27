@@ -16,6 +16,10 @@ function getOfflineUrls() {
   ];
 }
 
+function reloadRequest(request) {
+  return new Request(request, { cache: 'reload' });
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     try {
@@ -65,7 +69,7 @@ self.addEventListener('fetch', (event) => {
   const reqUrl = new URL(req.url);
   if (req.mode === 'navigate') {
     event.respondWith(
-      fetch(req).catch(() => caches.match(toAbs('index.html'), { ignoreSearch: true }))
+      fetch(reloadRequest(req)).catch(() => caches.match(toAbs('index.html')))
     );
     return;
   }
@@ -74,11 +78,11 @@ self.addEventListener('fetch', (event) => {
     const isStatic = /\.(?:js|css|svg|png|jpg|jpeg|webp|gif|ico|webmanifest|json)(?:\?|#|$)/i.test(reqUrl.pathname) || /\/index\.html$/.test(reqUrl.pathname);
     if (isStatic) {
       event.respondWith(
-        fetch(req).then((res) => {
+        fetch(reloadRequest(req)).then((res) => {
           const copy = res.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
           return res;
-        }).catch(() => caches.match(req, { ignoreSearch: true }))
+        }).catch(() => caches.match(req))
       );
     }
   }

@@ -8,6 +8,7 @@
   const MIX_DEFAULT = UPPER + LOWER + NUMS + SYMBOLS;
   const MIX_ABC = UPPER + LOWER + NUMS;
   const INPUT_REGEX = /^(?:(abc|pin)?(\d{1,2})?\:)?(.*)$/;
+  const ENGINE_VERSION = 'v2.0.2';
   const DEFAULT_LENGTH = 14;
   const MIN_LENGTH = 4;
   const MAX_LENGTH = 64;
@@ -391,6 +392,7 @@
   }
 
   global.AlienPassV2 = {
+    ENGINE_VERSION,
     ITERATIONS,
     DEFAULT_LENGTH,
     MIN_LENGTH,

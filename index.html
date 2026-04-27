@@ -1115,6 +1115,30 @@
 
   <script>
     (function () {
+      const EXPECTED_V2_ENGINE_VERSION = 'v2.0.2';
+
+      function blockStaleV2Engine() {
+        const status = document.getElementById('v2Status');
+        if (status) {
+          status.dataset.state = 'error';
+          status.textContent = 'AlienPass was updated. Refresh this page before generating passwords.';
+        }
+
+        const generateButton = document.getElementById('v2GenerateBtn');
+        if (generateButton) generateButton.disabled = true;
+
+        if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
+          navigator.serviceWorker.getRegistration().then((registration) => {
+            if (registration) registration.update();
+          }).catch(() => {/* ignore */ });
+        }
+      }
+
+      const v2EngineReady = !!(window.AlienPassV2 && window.AlienPassV2.ENGINE_VERSION === EXPECTED_V2_ENGINE_VERSION);
+      if (!v2EngineReady) {
+        blockStaleV2Engine();
+      }
+
       // PWA: register service worker in browsers only (skip inside native WebViews)
       const isNativeWebView = typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ReactNativeWebView);
       if ('serviceWorker' in navigator && !isNativeWebView) {
@@ -1239,22 +1263,24 @@
       const openVaultBtn = document.getElementById('openVaultBtn');
       const algorithmEl = document.getElementById('algorithm');
 
-      window.AlienPassV2.init({
-        input: '#v2InputString',
-        repeatInput: '#v2RepeatInputString',
-        repeatField: '#v2RepeatField',
-        newPassword: '#v2NewPassword',
-        login: '#v2Login',
-        generate: '#v2GenerateBtn',
-        clear: '#v2ClearBtn',
-        result: '#v2PasswordResult',
-        copy: '#v2CopyBtn',
-        status: '#v2Status',
-        preview: '#v2ParserPreview',
-        previewAlpha: '#v2PreviewAlpha',
-        previewLength: '#v2PreviewLength',
-        resultContainer: '#v2ResultContainer'
-      });
+      if (v2EngineReady) {
+        window.AlienPassV2.init({
+          input: '#v2InputString',
+          repeatInput: '#v2RepeatInputString',
+          repeatField: '#v2RepeatField',
+          newPassword: '#v2NewPassword',
+          login: '#v2Login',
+          generate: '#v2GenerateBtn',
+          clear: '#v2ClearBtn',
+          result: '#v2PasswordResult',
+          copy: '#v2CopyBtn',
+          status: '#v2Status',
+          preview: '#v2ParserPreview',
+          previewAlpha: '#v2PreviewAlpha',
+          previewLength: '#v2PreviewLength',
+          resultContainer: '#v2ResultContainer'
+        });
+      }
 
       // v2.0 Command String masking toggle (unprefixed CSS masking)
       const v2InputString = document.getElementById('v2InputString');
