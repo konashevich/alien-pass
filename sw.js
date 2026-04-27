@@ -58,7 +58,8 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
-// Cache-first for same-origin requests; network-first for navigations
+// Network-first for same-origin assets so password-generation code updates promptly;
+// cached responses are only used when offline.
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const reqUrl = new URL(req.url);
@@ -73,11 +74,11 @@ self.addEventListener('fetch', (event) => {
     const isStatic = /\.(?:js|css|svg|png|jpg|jpeg|webp|gif|ico|webmanifest|json)(?:\?|#|$)/i.test(reqUrl.pathname) || /\/index\.html$/.test(reqUrl.pathname);
     if (isStatic) {
       event.respondWith(
-        caches.match(req, { ignoreSearch: true }).then((cached) => cached || fetch(req).then((res) => {
+        fetch(req).then((res) => {
           const copy = res.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
           return res;
-        }).catch(() => cached))
+        }).catch(() => caches.match(req, { ignoreSearch: true }))
       );
     }
   }
