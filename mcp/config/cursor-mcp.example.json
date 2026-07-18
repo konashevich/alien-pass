@@ -4,7 +4,7 @@
       "command": "node",
       "args": ["/ABSOLUTE/PATH/TO/alien-pass/mcp/src/server.js"],
       "env": {
-        "ALIENPASS_MODE": "alienpass",
+        "ALIENPASS_MODE": "compose",
         "ALIENPASS_ALLOW_REVEAL": "0"
       }
     }

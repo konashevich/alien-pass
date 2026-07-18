@@ -6,10 +6,11 @@
  * Never register this server on a cloud proprietary agent that must not see secrets.
  *
  * Env:
- *   ALIENPASS_MODE=alienpass|keyring   (default: alienpass)
- *   ALIENPASS_ALLOW_REVEAL=0|1         (default: 0)
- *   ALIENPASS_FORCE_FALLBACK=1         (use file store instead of libsecret)
- *   ALIENPASS_FALLBACK_STORE=path      (override file store path)
+ *   ALIENPASS_MODE=compose|alienpass|keyring  (default: compose)
+ *   ALIENPASS_ALLOW_REVEAL=0|1                (default: 0)
+ *   ALIENPASS_FORCE_FALLBACK=1                (file keyring instead of libsecret)
+ *   ALIENPASS_FALLBACK_STORE=path
+ *   ALIENPASS_SITE_VAULT=path                 (encrypted site directory)
  */
 'use strict';
 
@@ -20,10 +21,13 @@ const { z } = require('zod');
 const engine = require('./alienpass-engine');
 const { createKeyring } = require('./keyring');
 const { buildReport, REPORT_SCHEMA } = require('./report');
+const { assembleInputString } = require('./mnemonic-compose');
+const { createSiteDirectory } = require('./site-directory');
 
-const MODE = (process.env.ALIENPASS_MODE || 'alienpass').toLowerCase();
+const MODE = (process.env.ALIENPASS_MODE || 'compose').toLowerCase();
 const ALLOW_REVEAL = process.env.ALIENPASS_ALLOW_REVEAL === '1';
 const keyring = createKeyring();
+const siteDirectory = createSiteDirectory(keyring);
 
 function textResult(obj) {
   return {
@@ -36,10 +40,76 @@ function domainOrStar(domain) {
   return d || '*';
 }
 
-async function resolvePassword({ username, domain, login_index, input_string }) {
-  const login = engine.withIndex(username, login_index == null ? 1 : login_index);
+function methodLabel() {
+  if (MODE === 'keyring') return 'keyring';
+  if (MODE === 'compose') return 'alienpass-v2-compose';
+  return 'alienpass-v2';
+}
 
+/**
+ * Compose path: site token (encrypted directory) + master (keyring) → InputString.
+ * Never expose token/master/assembled mnemonic to tool callers unless reveal is on.
+ */
+async function resolveComposedPassword({ username, site, login_index, input_string }) {
+  if (input_string && String(input_string).trim()) {
+    const login = engine.withIndex(username, login_index == null ? 1 : login_index);
+    const out = await engine.generatePassword({ login, inputString: String(input_string).trim() });
+    return {
+      password: out.password,
+      method: 'alienpass-v2',
+      login,
+      parsedLogin: out.parsed,
+      engine: out.engine,
+      site_id: null
+    };
+  }
+
+  const profile = siteDirectory.resolve(site || '');
+  if (!profile) {
+    const err = new Error('site_profile_miss');
+    err.code = 'site_profile_miss';
+    throw err;
+  }
+
+  const master = siteDirectory.getMaster();
+  if (!master) {
+    const err = new Error('master_missing');
+    err.code = 'master_missing';
+    throw err;
+  }
+
+  const assembled = assembleInputString({
+    siteToken: profile.token,
+    masterSecret: master,
+    casing: profile.casing,
+    modifiers: profile.modifiers
+  });
+
+  const index = login_index == null ? profile.login_index == null ? 1 : profile.login_index : login_index;
+  const user = username || profile.username;
+  if (!user) {
+    const err = new Error('username_required');
+    err.code = 'username_required';
+    throw err;
+  }
+
+  const login = engine.withIndex(user, index);
+  const out = await engine.generatePassword({ login, inputString: assembled.inputString });
+  return {
+    password: out.password,
+    method: 'alienpass-v2-compose',
+    login,
+    parsedLogin: out.parsed,
+    engine: out.engine,
+    site_id: profile.id,
+    // retained only for gated reveal debugging — callers must not log this
+    _debug_input_string: assembled.inputString
+  };
+}
+
+async function resolvePassword({ username, domain, login_index, input_string, site }) {
   if (MODE === 'keyring') {
+    const login = engine.withIndex(username, login_index == null ? 1 : login_index);
     const stored = keyring.lookup({
       username: engine.parseLoginString(login).login,
       domain: domainOrStar(domain),
@@ -53,6 +123,12 @@ async function resolvePassword({ username, domain, login_index, input_string }) 
     return { password: stored, method: 'keyring', login, parsedLogin: engine.parseLoginString(login) };
   }
 
+  if (MODE === 'compose') {
+    return resolveComposedPassword({ username, site: site || domain, login_index, input_string });
+  }
+
+  // Legacy Mode A: full InputString stored per username/domain
+  const login = engine.withIndex(username, login_index == null ? 1 : login_index);
   let inputString = input_string && String(input_string).trim();
   if (!inputString) {
     inputString = keyring.lookup({
@@ -91,21 +167,32 @@ server.tool(
 
 server.tool(
   'auth_status',
-  'Check whether a keyring entry exists for username+domain (no secret returned).',
+  'Check whether secrets/profiles exist (no secret values returned).',
   {
-    username: z.string().describe('Email / login base without ,index'),
-    domain: z.string().optional().describe('Site domain; defaults to *'),
-    kind: z.enum(['mnemonic', 'password']).optional()
+    username: z.string().optional().describe('Email / login base without ,index'),
+    domain: z.string().optional().describe('Site domain or URL host'),
+    site: z.string().optional().describe('URL or host for compose mode profile resolve'),
+    kind: z.enum(['mnemonic', 'password', 'master', 'compose']).optional()
   },
-  async ({ username, domain, kind }) => {
+  async ({ username, domain, site, kind }) => {
+    if (MODE === 'compose' || kind === 'compose' || kind === 'master') {
+      const profile = siteDirectory.resolve(site || domain || '');
+      return textResult({
+        mode: MODE,
+        master_present: siteDirectory.hasMaster(),
+        site_id: profile ? profile.id : null,
+        profile_present: Boolean(profile),
+        username: username || (profile && profile.username) || null
+      });
+    }
     const resolvedKind = kind || (MODE === 'keyring' ? 'password' : 'mnemonic');
     const secret = keyring.lookup({
-      username: String(username).trim(),
+      username: String(username || '').trim(),
       domain: domainOrStar(domain),
       kind: resolvedKind
     });
     return textResult({
-      username: String(username).trim(),
+      username: String(username || '').trim(),
       domain: domainOrStar(domain),
       kind: resolvedKind,
       present: Boolean(secret),
@@ -117,14 +204,50 @@ server.tool(
 
 server.tool(
   'list_accounts',
-  'List known accounts when using the file fallback store. Libsecret backend returns a capability note.',
+  'List non-secret account/profile metadata. Compose mode lists encrypted directory public fields only.',
   {},
-  async () => textResult(keyring.list())
+  async () => {
+    if (MODE === 'compose') {
+      return textResult({
+        mode: MODE,
+        master_present: siteDirectory.hasMaster(),
+        directory: siteDirectory.listPublic(),
+        keyring_backend: keyring.backend
+      });
+    }
+    return textResult(keyring.list());
+  }
+);
+
+server.tool(
+  'store_master_secret',
+  'Store the universal mnemonic suffix used by compose mode (protected; never returned by list/auth tools).',
+  {
+    master_secret: z.string().describe('Universal secret appended after the cased site token')
+  },
+  async ({ master_secret }) => textResult(siteDirectory.setMaster(master_secret))
+);
+
+server.tool(
+  'upsert_site_profile',
+  'Add/update an encrypted site profile: associative token + host matchers. Token is secret; not listed in cleartext.',
+  {
+    id: z.string().describe('Stable site id, e.g. google-mail or facebook'),
+    hosts: z.array(z.string()).describe('Hostnames that map to this associative token'),
+    token: z.string().describe('Associative domain element, usually lowercase, e.g. gmail'),
+    casing: z
+      .enum(['last_upper', 'first_upper', 'as_stored', 'none', 'all_lower', 'all_upper'])
+      .optional(),
+    modifiers: z.string().optional().describe('Optional AlienPass prefix like abc11 or abc11:'),
+    login_index: z.number().int().nonnegative().optional(),
+    username: z.string().optional()
+  },
+  async (profile) => textResult(siteDirectory.upsertSite(profile))
 );
 
 server.tool(
   'store_mnemonic',
-  'Store AlienPass InputString (mnemonic/command string) in the keyring for Mode A.',
+  'Legacy Mode A: store a full AlienPass InputString in the keyring (not used by compose mode).',
   {
     username: z.string(),
     domain: z.string().optional(),
@@ -182,10 +305,11 @@ server.tool(
   {
     username: z.string(),
     domain: z.string().optional(),
+    site: z.string().optional().describe('URL/host for compose profile resolve'),
     login_index: z.number().int().nonnegative().optional(),
-    input_string: z.string().optional().describe('Optional override; otherwise keyring mnemonic')
+    input_string: z.string().optional().describe('Optional full InputString override (debug)')
   },
-  async ({ username, domain, login_index, input_string }) => {
+  async ({ username, domain, site, login_index, input_string }) => {
     if (!ALLOW_REVEAL) {
       return textResult({
         ok: false,
@@ -195,21 +319,27 @@ server.tool(
       });
     }
     try {
-      const resolved = await resolvePassword({ username, domain, login_index, input_string });
-      return textResult({
+      const resolved = await resolvePassword({ username, domain, site, login_index, input_string });
+      const payload = {
         ok: true,
         password: resolved.password,
         method: resolved.method,
         login: resolved.login,
+        site_id: resolved.site_id || null,
         engine: resolved.engine || null,
         warning: 'Password revealed to caller. Do not forward to a cloud agent.'
-      });
+      };
+      if (resolved._debug_input_string) {
+        payload.input_string = resolved._debug_input_string;
+        payload.warning += ' Also reveals assembled InputString.';
+      }
+      return textResult(payload);
     } catch (error) {
       return textResult(
         buildReport({
           ok: false,
           username,
-          method: MODE === 'keyring' ? 'keyring' : 'alienpass-v2',
+          method: methodLabel(),
           error_code: error.code || 'generate_failed',
           message: error.message
         })
@@ -220,12 +350,12 @@ server.tool(
 
 server.tool(
   'fill_login',
-  'Mode A preferred path: derive AlienPass password and describe injection. CDP wire-up is Phase 5; returns a safe report plus fill plan without the password when reveal is off.',
+  'Preferred AlienPass path (compose or legacy): materialize password and prepare injection. Does not return secrets when reveal is off.',
   {
-    username: z.string(),
+    username: z.string().optional(),
     domain: z.string().optional(),
+    site: z.string().optional().describe('Page URL or host — required for compose mode'),
     login_index: z.number().int().nonnegative().optional(),
-    site: z.string().optional(),
     username_selector: z.string().optional(),
     password_selector: z.string().optional(),
     submit_selector: z.string().optional()
@@ -233,30 +363,35 @@ server.tool(
   async ({
     username,
     domain,
-    login_index,
     site,
+    login_index,
     username_selector,
     password_selector,
     submit_selector
   }) => {
     const started = Date.now();
     try {
-      const resolved = await resolvePassword({ username, domain, login_index });
-      // Phase 5: attach to Cursor/Chromium CDP and type into selectors without returning password.
+      const resolved = await resolvePassword({
+        username,
+        domain,
+        site: site || domain,
+        login_index
+      });
       const injection = {
         status: 'planned_not_connected',
-        note: 'CDP injection not yet wired. Local subagent may use browser tools with a one-shot local reveal only if unavoidable.',
+        note: 'CDP injection not yet wired. Assembly happened inside MCP protected process.',
         username_selector: username_selector || 'input[type=email], input[name=username], input[name=email]',
         password_selector: password_selector || 'input[type=password]',
         submit_selector: submit_selector || 'button[type=submit]',
         username_value: engine.parseLoginString(resolved.login).login,
         password_ready: true,
-        password_fingerprint: keyring.fingerprint(resolved.password)
+        password_fingerprint: keyring.fingerprint(resolved.password),
+        site_id: resolved.site_id || null
       };
 
       const report = buildReport({
         ok: true,
-        site: site || null,
+        site: site || domain || null,
         username: engine.parseLoginString(resolved.login).login,
         method: resolved.method,
         login_index: Number(resolved.parsedLogin.index),
@@ -267,6 +402,7 @@ server.tool(
       const payload = { report, injection };
       if (ALLOW_REVEAL) {
         payload.password = resolved.password;
+        if (resolved._debug_input_string) payload.input_string = resolved._debug_input_string;
         payload.warning = 'Reveal enabled; strip before any cloud handoff.';
       }
       return textResult(payload);
@@ -274,9 +410,9 @@ server.tool(
       return textResult(
         buildReport({
           ok: false,
-          site: site || null,
-          username,
-          method: MODE === 'keyring' ? 'keyring' : 'alienpass-v2',
+          site: site || domain || null,
+          username: username || null,
+          method: methodLabel(),
           error_code: error.code || 'fill_failed',
           message: error.message,
           duration_ms: Date.now() - started
@@ -354,7 +490,7 @@ server.tool(
     ok: z.boolean(),
     site: z.string().optional(),
     username: z.string().optional(),
-    method: z.enum(['alienpass-v2', 'keyring']).optional(),
+    method: z.enum(['alienpass-v2', 'alienpass-v2-compose', 'keyring']).optional(),
     login_index: z.number().optional(),
     evidence: z.string().optional(),
     error_code: z.string().optional(),

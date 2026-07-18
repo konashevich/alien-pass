@@ -22,10 +22,22 @@ npm run test:engine
 
 | Env | Behavior |
 | --- | --- |
-| `ALIENPASS_MODE=alienpass` (default) | Keyring stores mnemonic / `InputString`; password derived with v2 |
-| `ALIENPASS_MODE=keyring` | Keyring stores final passwords (simplification) |
+| `ALIENPASS_MODE=compose` (default) | Encrypted site token directory + keyring master → assemble InputString → AlienPass v2 |
+| `ALIENPASS_MODE=alienpass` | Legacy: keyring stores full InputString per username/domain |
+| `ALIENPASS_MODE=keyring` | Mode B: keyring stores final passwords |
 | `ALIENPASS_ALLOW_REVEAL=0` (default) | `generate_password` refuses; prefer `fill_*` |
 | `ALIENPASS_FORCE_FALLBACK=1` | Use file store instead of libsecret |
+
+### Compose setup (associative tokens)
+
+```bash
+export ALIENPASS_FORCE_FALLBACK=1
+export ALIENPASS_MODE=compose
+# via MCP tools store_master_secret + upsert_site_profile, or upcoming CLI helpers
+```
+
+Example assembly: token `gmail` + casing `last_upper` + master `Tower35` → `gmaiLTower35`.
+Hosts like `accounts.google.com` map to that token inside an AES-GCM vault; agents never see the token.
 
 ## Cursor MCP snippet (local subagent only)
 

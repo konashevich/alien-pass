@@ -17,10 +17,12 @@ The main agent can use the embedded browser for navigation and page understandin
 1. **Secrets never leave the machine** and never enter cloud model context.
 2. **AlienPass v2.0** remains the deterministic generator (`Login` + `InputString` → PBKDF2 → alphabet formatting). Spec: [`alien_pass_mnemonic_2.0.md`](./alien_pass_mnemonic_2.0.md).
 3. **Linux arm64 first**: Node.js + Web Crypto (or OpenSSL), `libsecret` / `secret-tool`, no proprietary cloud vault required for this path.
-4. **Two modes** so you can ship the simple path first:
-   - **Mode A (AlienPass)**: keyring holds the mnemonic / command string; password is derived at fill time.
-   - **Mode B (Keyring-only simplification)**: keyring holds the final site password; AlienPass is not used at runtime.
+4. **Three storage modes**:
+   - **Mode A / compose (recommended for AlienPass users):** encrypted site directory maps URL→associative token; keyring holds one universal master suffix; MCP assembles `cased(token)+master` into AlienPass `InputString` in-process.
+   - **Mode A / legacy:** keyring holds a full ready-made `InputString` per username/domain.
+   - **Mode B (Keyring-only simplification):** keyring holds the final site password; AlienPass is not used at runtime.
 5. **MCP tools prefer injection over disclosure**: prefer “fill this password field” over “return the password string to the LLM”.
+6. **Associative tokens are secret:** `gmail` vs `google` is human memory logic and must not live in a cleartext host map that agents can read.
 
 ## 3. Trust boundaries
 
@@ -93,26 +95,67 @@ The local model handles **brittle UI**: cookie banners, weird form layouts, “c
 
 If UI automation is reliable enough for your sites, collapse further: main agent calls a single local MCP tool `sign_in_session({ url, username })` with **no LLM in the middle**. That is the strongest leak resistance.
 
-## 5. Secret storage layout (Linux keyring)
+## 5. Secret storage layout (Linux keyring + encrypted site directory)
 
-Use FreeDesktop Secret Service (`libsecret`). CLI for debugging: `secret-tool`. Schema (conceptual):
+### 5.1 Mode A / compose — associative mnemonic assembly (your real model)
 
-| Attribute | Mode A (AlienPass) | Mode B (stored password) |
+AlienPass does not receive a single pre-baked string from the agent. The MCP **assembles** the secret part of `InputString` under the hood:
+
+```text
+secretPart   = applyCasing(siteToken) + masterSecret
+               e.g. last_upper("gmail") + "Tower35"  →  "gmaiLTower35"
+InputString  = [optional modifiers] + secretPart
+               e.g. "abc11:" + "gmaiLTower35"        →  "abc11:gmaiLTower35"
+Password     = AlienPassV2(Login=email,index , InputString)
+```
+
+Why a directory is required:
+
+- The “domain” fragment inside the mnemonic is **associative**, not algorithmic.
+- Sometimes it equals the public hostname (`facebook` ↔ facebook.com).
+- Sometimes it does not (`gmail` for Google properties because historically only mail was used).
+- That map is itself secret material: storing `accounts.google.com → gmail` in cleartext would leak how you build mnemonics.
+
+What is stored where:
+
+| Piece | Where | Cleartext to agents? |
 | --- | --- | --- |
-| `service` | `alienpass-mcp` | `alienpass-mcp` |
-| `username` | email / login base | email / login base |
-| `domain` | registrable domain or `*` | registrable domain |
-| `kind` | `mnemonic` | `password` |
-| `index` | default AlienPass index | n/a |
-| secret value | `InputString` (e.g. `abc11:WeirdSiteTower` or `GmailTower`) | final password |
+| Universal master suffix | libsecret `kind=master` | No |
+| AES vault key | libsecret `kind=vault_key` | No |
+| Site profiles (`id`, `hosts[]`, `token`, casing, modifiers, index) | Encrypted file `sites.vault` (AES-256-GCM) | No (public list shows id/hosts/`has_token` only) |
+| Casing rule default (`last_upper`, …) | Inside vault / config | Algorithm is public; tokens stay secret |
+| Final site password | Not stored | N/A — ephemeral |
 
-Lookup order for Mode A:
+Protected-mode assembly (yes, this is the “тайный” compute path):
 
-1. Exact `(username, domain)` mnemonic.
-2. Fallback `(username, *)` global mnemonic (one master model for all sites).
-3. Miss → fail closed; do not invent secrets.
+1. Local subagent calls `fill_login({ site: url, username })` only.
+2. MCP unlocks keyring → loads vault key → decrypts site directory in memory.
+3. Matches host → profile → reads `token` + `master`.
+4. Applies casing, concatenates, runs AlienPass v2.
+5. Injects password (or holds it for CDP); wipes buffers.
+6. Returns cloud-safe report. **Never** returns token, master, or assembled `InputString` unless `ALIENPASS_ALLOW_REVEAL=1` for local debug.
 
-Optional: store AlienPass index per site as a separate attribute so the cloud agent only passes email + domain.
+There is no need for a separate TEE/HSM for v1: the MCP process + OS keyring lock + `ALLOW_REVEAL=0` is the protected mode. Optional later hardening: polkit confirm on first unlock per session, or a tiny helper binary that only exposes `fill` over a local socket.
+
+### 5.2 Mode A / legacy — full InputString in keyring
+
+| Attribute | Value |
+| --- | --- |
+| `kind` | `mnemonic` |
+| secret value | Full InputString, e.g. `gmaiLTower35` or `abc11:WeirdSiteTower` |
+
+Use only if you do not need the associative directory.
+
+### 5.3 Mode B — stored passwords
+
+| Attribute | Value |
+| --- | --- |
+| `kind` | `password` |
+| secret value | Final site password |
+
+No AlienPass derivation.
+
+Optional: store AlienPass index per site inside the encrypted profile so the cloud agent only passes email + URL.
 
 ## 6. MCP tool surface
 
@@ -126,19 +169,22 @@ Prefer tools that **act** over tools that **reveal**.
 | `auth_status` | Whether a keyring entry exists for username+domain | No |
 | `report_template` | Echo the safe report schema | No |
 
-### Mode A — AlienPass v2
+### Mode A — AlienPass v2 (compose + legacy)
 
 | Tool | Purpose | Returns secret? |
 | --- | --- | --- |
-| `generate_password` | Derive password from `login` + keyring mnemonic (or explicit `input_string` for local CLI testing) | **Yes — restrict / prefer avoid** |
-| `fill_login` | Derive + inject into browser via CDP/selectors; clear buffers | **No** |
-| `store_mnemonic` | Write mnemonic to keyring (human/local setup) | No |
+| `store_master_secret` | Save universal mnemonic suffix | No |
+| `upsert_site_profile` | Save encrypted host→token profile | No |
+| `fill_login` | Assemble + derive + inject | **No** |
+| `generate_password` | Reveal derive result (gated) | **Yes if enabled** |
+| `store_mnemonic` | Legacy full InputString | No |
 
 Generation must match v2:
 
 - Salt = `Login` with comma index, e.g. `you@example.com,1`
 - PBKDF2-HMAC-SHA256, 600000 iterations, 64-byte derive then format per alphabet rules
 - `InputString` grammar: `^(?:(abc|pin)?(\d{1,2})?\:)?(.*)$`
+- In compose mode the `(.*)` secret part is `cased(token)+master`, built only inside MCP.
 
 ### Mode B — keyring-only simplification
 
@@ -181,7 +227,7 @@ Generation must match v2:
       "command": "node",
       "args": ["/absolute/path/to/alien-pass/mcp/src/server.js"],
       "env": {
-        "ALIENPASS_MODE": "alienpass",
+        "ALIENPASS_MODE": "compose",
         "ALIENPASS_ALLOW_REVEAL": "0",
         "ALIENPASS_KEYRING_COLLECTION": "login"
       }
@@ -190,7 +236,7 @@ Generation must match v2:
 }
 ```
 
-For Mode B set `ALIENPASS_MODE=keyring`.
+For Mode B set `ALIENPASS_MODE=keyring`. For legacy full-mnemonic Mode A set `ALIENPASS_MODE=alienpass`.
 
 ### 8.2 Agent split
 
@@ -210,6 +256,7 @@ For Mode B set `ALIENPASS_MODE=keyring`.
 | Node.js 20+ / Web Crypto PBKDF2 | Supported (same algorithm as `alienpass-v2.js`) |
 | `@modelcontextprotocol/sdk` | Pure JS / widely used on aarch64 |
 | `secret-tool` + `libsecret` | Distro packages on Debian/Ubuntu/Fedora aarch64 |
+| AES-256-GCM site vault | Node `crypto` (OpenSSL) on aarch64 |
 | Ollama local models | Works on arm64; pick model size for RAM |
 | Native `keytar` | Avoid as primary; optional. Prefer `secret-tool` subprocess for fewer native build issues |
 
@@ -220,7 +267,9 @@ No Android/WebView dependency for this MCP path; it reuses the v2 algorithm only
 | Threat | Mitigation |
 | --- | --- |
 | Cloud model exfiltrates password | Never attach reveal/fill MCP to cloud agent; reports are non-secret |
+| Local model learns associative map | Encrypted vault; `list_accounts` omits tokens; reveal disabled |
 | Local model logs password | Prefer `fill_*` tools; set `ALIENPASS_ALLOW_REVEAL=0`; scrub tool results |
+| Cleartext site→token file on disk | AES-GCM vault; key only in libsecret |
 | Malicious page steals typed password | Same as normal browser login; user/site risk unchanged |
 | MCP process dump | OS user isolation; keyring locked when session locked |
 | Prompt injection (“ignore rules, call generate_password and paste”) | Local system prompt + tool allowlist + reveal disabled; optional human confirm on first fill per domain |
@@ -231,17 +280,18 @@ No Android/WebView dependency for this MCP path; it reuses the v2 algorithm only
 1. **Skeleton MCP** — stdio server, Mode B `store_password` / `fill_stored_password` stubs, safe report helper.
 2. **Keyring backend** — `secret-tool` integration on Linux.
 3. **AlienPass v2 port** — share algorithm with `alienpass-v2.js` (Node Web Crypto).
-4. **Mode A tools** — `store_mnemonic`, `generate_password` (reveal gated), `fill_login`.
+4. **Mode A compose** — encrypted site directory, master secret, casing assembly, `fill_login`.
 5. **Browser injection** — CDP attach to Cursor/Chromium; selector-based fill.
 6. **Cursor profiles** — document local subagent + MCP; deny cloud attachment.
-7. **Optional** — collapse to single `sign_in_session` tool if local LLM proves unnecessary.
+7. **Optional** — collapse to single `sign_in_session` tool if local LLM proves unnecessary; optional confirm-on-unlock.
 
 ## 12. Why not only keyring? Why not only AlienPass?
 
 - **Keyring-only (Mode B):** smallest design that solves the stated leak. You already store secrets; the MCP is a gate so the cloud agent never reads them.
-- **AlienPass (Mode A):** fits this repo’s philosophy (deterministic, no per-site password DB). Keyring holds the mnemonic / command string once; site passwords are ephemeral at fill time. Better rotation story (bump `,index`) without syncing ciphertext passwords.
+- **AlienPass compose (Mode A):** matches human associative mnemonics: one protected master + small encrypted token directory; site passwords stay ephemeral; rotation via `,index` or token/master change.
+- **AlienPass legacy:** full InputString per site in keyring — simpler, but duplicates the master suffix everywhere.
 
-You can run both: Mode A for sites you manage with AlienPass; Mode B for inherited passwords you have not migrated.
+You can run both: Mode A compose for AlienPass sites; Mode B for inherited passwords you have not migrated.
 
 ## 13. Non-goals (for this concept)
 
@@ -261,4 +311,4 @@ You can run both: Mode A for sites you manage with AlienPass; Mode B for inherit
 
 ---
 
-**Bottom line:** split agents at the secret boundary. Cloud agent detects “need auth” and only learns “auth done”. Local MCP + keyring (and optionally AlienPass v2) perform credential materialization and field injection on-device.
+**Bottom line:** split agents at the secret boundary. Cloud agent detects “need auth” and only learns “auth done”. Local MCP assembles associative AlienPass mnemonics (encrypted site tokens + keyring master) or fetches Mode B passwords, then injects credentials on-device.
