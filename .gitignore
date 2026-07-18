@@ -46,3 +46,6 @@ android/*.jks
 
 # Gradle caches (if any at repo root)
 .gradle/
+
+# SpecStory IDE traces (public repo)
+.specstory/
