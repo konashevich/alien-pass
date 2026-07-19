@@ -13,12 +13,43 @@ function domainOrStar(domain) {
   return d || '*';
 }
 
+/**
+ * Normalize a URL, host, or bare domain into a keyring/site hostname.
+ */
+function normalizeHostname(value) {
+  const raw = String(value || '').trim();
+  if (!raw || raw === '*') return '*';
+  if (raw.startsWith('file:')) return 'file';
+  try {
+    if (raw.includes('://')) {
+      return new URL(raw).hostname.toLowerCase().replace(/^www\./, '') || '*';
+    }
+  } catch {
+    // fall through
+  }
+  const host = raw
+    .replace(/^https?:\/\//i, '')
+    .split('/')[0]
+    .split('?')[0]
+    .split('#')[0]
+    .toLowerCase()
+    .replace(/^www\./, '');
+  return host || '*';
+}
+
+function lookupDomain(domain, site) {
+  if (domain && String(domain).trim()) return normalizeHostname(domain);
+  if (site && String(site).trim()) return normalizeHostname(site);
+  return '*';
+}
+
 function createCredentialService(options = {}) {
   const mode = String(options.mode || process.env.ALIENPASS_MODE || 'compose').toLowerCase();
   const allowReveal =
     options.allowReveal != null
       ? Boolean(options.allowReveal)
       : process.env.ALIENPASS_ALLOW_REVEAL === '1';
+  const allowRevealMnemonic = process.env.ALIENPASS_ALLOW_REVEAL_MNEMONIC === '1';
   const keyring = options.keyring || createKeyring();
   const siteDirectory = options.siteDirectory || createSiteDirectory(keyring);
 
@@ -76,16 +107,18 @@ function createCredentialService(options = {}) {
 
     const login = engine.withIndex(user, index);
     const out = await engine.generatePassword({ login, inputString: assembled.inputString });
-    return {
+    const result = {
       password: out.password,
       method: 'alienpass-v2-compose',
       login,
       parsedLogin: out.parsed,
       engine: out.engine,
       site_id: profile.id,
-      username: out.parsed.login,
-      _debug_input_string: assembled.inputString
+      username: out.parsed.login
     };
+    // Never attach mnemonic unless an explicit separate debug gate is set.
+    if (allowRevealMnemonic) result._debug_input_string = assembled.inputString;
+    return result;
   }
 
   async function resolvePassword(args = {}) {
@@ -94,9 +127,10 @@ function createCredentialService(options = {}) {
     if (mode === 'keyring') {
       const login = engine.withIndex(username, login_index == null ? 1 : login_index);
       const parsedLogin = engine.parseLoginString(login);
+      const host = lookupDomain(domain, site);
       const stored = keyring.lookup({
         username: parsedLogin.login,
-        domain: domainOrStar(domain || site),
+        domain: domainOrStar(host),
         kind: 'password'
       });
       if (!stored) {
@@ -123,11 +157,12 @@ function createCredentialService(options = {}) {
 
     const login = engine.withIndex(username, login_index == null ? 1 : login_index);
     const parsedLogin = engine.parseLoginString(login);
+    const host = lookupDomain(domain, site);
     let inputString = input_string && String(input_string).trim();
     if (!inputString) {
       inputString = keyring.lookup({
         username: parsedLogin.login,
-        domain: domainOrStar(domain),
+        domain: domainOrStar(host),
         kind: 'mnemonic'
       });
     }
@@ -136,38 +171,46 @@ function createCredentialService(options = {}) {
     }
 
     const out = await engine.generatePassword({ login, inputString });
-    return {
+    const result = {
       password: out.password,
       method: 'alienpass-v2',
       login,
       parsedLogin: out.parsed,
       engine: out.engine,
-      username: out.parsed.login,
-      _debug_input_string: inputString
+      username: out.parsed.login
     };
+    if (allowRevealMnemonic) result._debug_input_string = inputString;
+    return result;
   }
 
   function authStatus({ username, domain, site, kind } = {}) {
     if (mode === 'compose' || kind === 'compose' || kind === 'master') {
-      const profile = siteDirectory.resolve(site || domain || '');
+      const profile = siteDirectory.resolveFlexible({
+        site: site || domain || '',
+        username
+      });
       return {
         mode,
         master_present: siteDirectory.hasMaster(),
         site_id: profile ? profile.id : null,
         profile_present: Boolean(profile),
         username: username || (profile && profile.username) || null,
-        keyring_backend: keyring.backend
+        keyring_backend: keyring.backend,
+        keyring_warning: keyring.insecure_relative_to_libsecret
+          ? 'file-fallback-encrypted is weaker than a locked desktop keyring'
+          : null
       };
     }
     const resolvedKind = kind || (mode === 'keyring' ? 'password' : 'mnemonic');
+    const host = lookupDomain(domain, site);
     const secret = keyring.lookup({
       username: String(username || '').trim(),
-      domain: domainOrStar(domain),
+      domain: domainOrStar(host),
       kind: resolvedKind
     });
     return {
       username: String(username || '').trim(),
-      domain: domainOrStar(domain),
+      domain: domainOrStar(host),
       kind: resolvedKind,
       present: Boolean(secret),
       backend: keyring.backend,
@@ -190,6 +233,7 @@ function createCredentialService(options = {}) {
   return {
     mode,
     allowReveal,
+    allowRevealMnemonic,
     keyring,
     siteDirectory,
     methodLabel,
@@ -197,11 +241,9 @@ function createCredentialService(options = {}) {
     authStatus,
     listAccounts,
     domainOrStar,
-    engine,
-    fingerprint(value) {
-      return keyring.fingerprint(value);
-    }
+    normalizeHostname,
+    engine
   };
 }
 
-module.exports = { createCredentialService, domainOrStar };
+module.exports = { createCredentialService, domainOrStar, normalizeHostname };

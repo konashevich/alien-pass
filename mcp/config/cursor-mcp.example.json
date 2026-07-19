@@ -5,7 +5,8 @@
       "args": ["/ABSOLUTE/PATH/TO/alien-pass/mcp/src/server.js"],
       "env": {
         "ALIENPASS_MODE": "compose",
-        "ALIENPASS_ALLOW_REVEAL": "0"
+        "ALIENPASS_ALLOW_REVEAL": "0",
+        "ALIENPASS_AGENT_SAFE": "1"
       }
     }
   }

@@ -1,16 +1,9 @@
 #!/usr/bin/env node
 /**
- * AlienPass MCP server (stdio) — full local sign-in product.
+ * AlienPass MCP server (stdio) — local sign-in product.
  *
  * Attach ONLY to a local Cursor subagent / local-model profile.
- *
- * Env:
- *   ALIENPASS_MODE=compose|alienpass|keyring
- *   ALIENPASS_ALLOW_REVEAL=0|1
- *   ALIENPASS_FORCE_FALLBACK=1
- *   ALIENPASS_CDP_URL / ALIENPASS_CDP_PORT
- *   ALIENPASS_BROWSER_HEADLESS=0|1
- *   ALIENPASS_CHROME_PATH
+ * Recommended agent env: ALIENPASS_AGENT_SAFE=1 (disables setup/reveal tools).
  */
 'use strict';
 
@@ -23,10 +16,20 @@ const { buildReport, REPORT_SCHEMA } = require('./report');
 const { signInSession, fillCurrentPage, resolveChromePath, cdpEndpoint } = require('./browser');
 
 const service = createCredentialService();
-const { keyring, siteDirectory, allowReveal, mode } = service;
+const { keyring, siteDirectory, allowReveal, allowRevealMnemonic, mode } = service;
+const AGENT_SAFE = process.env.ALIENPASS_AGENT_SAFE === '1';
 
 function textResult(obj) {
   return { content: [{ type: 'text', text: JSON.stringify(obj, null, 2) }] };
+}
+
+function setupBlocked() {
+  return textResult({
+    ok: false,
+    error_code: 'setup_disabled',
+    message:
+      'ALIENPASS_AGENT_SAFE=1 blocks vault mutation tools. Use the CLI for setup, or unset AGENT_SAFE for a setup profile.'
+  });
 }
 
 const casingEnum = z.enum([
@@ -40,7 +43,7 @@ const casingEnum = z.enum([
 
 const server = new McpServer({
   name: 'alienpass-mcp',
-  version: '1.0.0'
+  version: '1.0.1'
 });
 
 server.tool(
@@ -51,13 +54,26 @@ server.tool(
     textResult({
       mode,
       allow_reveal: allowReveal,
+      allow_reveal_mnemonic: allowRevealMnemonic,
+      agent_safe: AGENT_SAFE,
       keyring_backend: keyring.backend,
+      keyring_reason: keyring.backend_reason || null,
+      keyring_warning: keyring.insecure_relative_to_libsecret
+        ? 'Encrypted file fallback is weaker than a locked desktop keyring'
+        : null,
       chrome_path: resolveChromePath(),
-      cdp: cdpEndpoint(),
+      cdp: (() => {
+        try {
+          return cdpEndpoint();
+        } catch (error) {
+          return { error: error.code || error.message };
+        }
+      })(),
       master_present: mode === 'compose' ? siteDirectory.hasMaster() : null,
       vault_path: siteDirectory.path,
       node: process.version,
-      platform: `${process.platform}-${process.arch}`
+      platform: `${process.platform}-${process.arch}`,
+      note: 'Launch mode signs into a temporary Chrome unless ALIENPASS_CDP_URL points at Cursor/Chrome.'
     })
 );
 
@@ -68,7 +84,12 @@ server.tool(
   async () =>
     textResult({
       schema: REPORT_SCHEMA,
-      example: buildReport({ ok: true, method: 'alienpass-v2-compose' })
+      example: buildReport({
+        ok: true,
+        method: 'alienpass-v2-compose',
+        evidence: 'url_includes:/dashboard',
+        verified: true
+      })
     })
 );
 
@@ -93,14 +114,17 @@ server.tool(
 
 server.tool(
   'store_master_secret',
-  'Store the universal mnemonic suffix used by compose mode.',
+  'Store the universal mnemonic suffix used by compose mode. Disabled when ALIENPASS_AGENT_SAFE=1.',
   { master_secret: z.string() },
-  async ({ master_secret }) => textResult(siteDirectory.setMaster(master_secret))
+  async ({ master_secret }) => {
+    if (AGENT_SAFE) return setupBlocked();
+    return textResult(siteDirectory.setMaster(master_secret));
+  }
 );
 
 server.tool(
   'upsert_site_profile',
-  'Add/update an encrypted site profile (associative token + hosts).',
+  'Add/update an encrypted site profile. Disabled when ALIENPASS_AGENT_SAFE=1.',
   {
     id: z.string(),
     hosts: z.array(z.string()),
@@ -110,29 +134,36 @@ server.tool(
     login_index: z.number().int().nonnegative().optional(),
     username: z.string().optional()
   },
-  async (profile) => textResult(siteDirectory.upsertSite(profile))
+  async (profile) => {
+    if (AGENT_SAFE) return setupBlocked();
+    return textResult(siteDirectory.upsertSite(profile));
+  }
 );
 
 server.tool(
   'delete_site_profile',
-  'Delete an encrypted site profile by id.',
+  'Delete an encrypted site profile by id. Disabled when ALIENPASS_AGENT_SAFE=1.',
   { id: z.string() },
-  async ({ id }) => textResult(siteDirectory.deleteSite(id))
+  async ({ id }) => {
+    if (AGENT_SAFE) return setupBlocked();
+    return textResult(siteDirectory.deleteSite(id));
+  }
 );
 
 server.tool(
   'store_mnemonic',
-  'Legacy Mode A: store a full AlienPass InputString in the keyring.',
+  'Legacy Mode A: store a full AlienPass InputString. Disabled when ALIENPASS_AGENT_SAFE=1.',
   {
     username: z.string(),
     domain: z.string().optional(),
     input_string: z.string()
   },
   async ({ username, domain, input_string }) => {
+    if (AGENT_SAFE) return setupBlocked();
     keyring.store(
       {
         username: String(username).trim(),
-        domain: service.domainOrStar(domain),
+        domain: service.domainOrStar(service.normalizeHostname(domain || '*')),
         kind: 'mnemonic'
       },
       String(input_string).trim()
@@ -141,7 +172,7 @@ server.tool(
       ok: true,
       kind: 'mnemonic',
       username: String(username).trim(),
-      domain: service.domainOrStar(domain),
+      domain: service.normalizeHostname(domain || '*'),
       backend: keyring.backend
     });
   }
@@ -149,17 +180,18 @@ server.tool(
 
 server.tool(
   'store_password',
-  'Mode B: store a final site password in the keyring.',
+  'Mode B: store a final site password. Disabled when ALIENPASS_AGENT_SAFE=1.',
   {
     username: z.string(),
     domain: z.string().optional(),
     password: z.string()
   },
   async ({ username, domain, password }) => {
+    if (AGENT_SAFE) return setupBlocked();
     keyring.store(
       {
         username: String(username).trim(),
-        domain: service.domainOrStar(domain),
+        domain: service.domainOrStar(service.normalizeHostname(domain || '*')),
         kind: 'password'
       },
       String(password)
@@ -168,7 +200,7 @@ server.tool(
       ok: true,
       kind: 'password',
       username: String(username).trim(),
-      domain: service.domainOrStar(domain),
+      domain: service.normalizeHostname(domain || '*'),
       backend: keyring.backend
     });
   }
@@ -176,7 +208,7 @@ server.tool(
 
 server.tool(
   'generate_password',
-  'Derive/fetch password. Disabled unless ALIENPASS_ALLOW_REVEAL=1. Prefer sign_in_session.',
+  'Derive/fetch password. Requires ALIENPASS_ALLOW_REVEAL=1. Never returns mnemonic unless ALIENPASS_ALLOW_REVEAL_MNEMONIC=1.',
   {
     username: z.string().optional(),
     domain: z.string().optional(),
@@ -186,11 +218,11 @@ server.tool(
     input_string: z.string().optional()
   },
   async (args) => {
-    if (!allowReveal) {
+    if (AGENT_SAFE || !allowReveal) {
       return textResult({
         ok: false,
-        error_code: 'reveal_disabled',
-        message: 'ALIENPASS_ALLOW_REVEAL=0. Use sign_in_session / fill_login.'
+        error_code: AGENT_SAFE ? 'setup_disabled' : 'reveal_disabled',
+        message: 'Use sign_in_session / fill_login. Reveal is disabled for agent-safe mode.'
       });
     }
     try {
@@ -203,7 +235,10 @@ server.tool(
         site_id: resolved.site_id || null,
         warning: 'Password revealed to caller. Do not forward to a cloud agent.'
       };
-      if (resolved._debug_input_string) payload.input_string = resolved._debug_input_string;
+      if (allowRevealMnemonic && resolved._debug_input_string) {
+        payload.input_string = resolved._debug_input_string;
+        payload.warning += ' Mnemonic reveal also enabled.';
+      }
       return textResult(payload);
     } catch (error) {
       return textResult(
@@ -221,7 +256,7 @@ server.tool(
 
 server.tool(
   'fill_login',
-  'Assemble credentials and fill the current CDP browser page (or launch if configured). Prefer sign_in_session for full navigation.',
+  'Assemble credentials and fill a matching CDP page, or fall back to sign_in_session when a site URL is provided.',
   {
     username: z.string().optional(),
     domain: z.string().optional(),
@@ -231,7 +266,9 @@ server.tool(
     username_selector: z.string().optional(),
     password_selector: z.string().optional(),
     submit_selector: z.string().optional(),
-    submit: z.boolean().optional()
+    submit: z.boolean().optional(),
+    success_selector: z.string().optional(),
+    success_url_includes: z.string().optional()
   },
   async (args) => {
     const started = Date.now();
@@ -244,31 +281,33 @@ server.tool(
         login_index: args.login_index
       });
 
-      const browserResult = await fillCurrentPage({
+      let finalBrowser = await fillCurrentPage({
         username: resolved.username,
         password: resolved.password,
         username_selector: args.username_selector,
         password_selector: args.password_selector,
         submit_selector: args.submit_selector,
         submit: args.submit !== false,
-        allowLaunch: Boolean(args.site)
+        site: args.site || args.domain,
+        expectedHost: service.normalizeHostname(args.site || args.domain || '')
       });
 
-      // If CDP missing but site URL given, fall back to full sign-in session
-      let finalBrowser = browserResult;
-      if (!browserResult.ok && browserResult.error_code === 'cdp_required' && args.site) {
+      if (!finalBrowser.ok && finalBrowser.error_code === 'cdp_required' && args.site) {
         finalBrowser = await signInSession({
           url: args.site,
           username: resolved.username,
           password: resolved.password,
           username_selector: args.username_selector,
           password_selector: args.password_selector,
-          submit_selector: args.submit_selector
+          submit_selector: args.submit_selector,
+          success_selector: args.success_selector,
+          success_url_includes: args.success_url_includes
         });
       }
 
+      const verified = Boolean(finalBrowser.verified);
       const report = buildReport({
-        ok: finalBrowser.ok,
+        ok: finalBrowser.ok && (verified || finalBrowser.evidence === 'filled_credentials'),
         site: args.site || args.domain || finalBrowser.url || null,
         username: resolved.username,
         method: resolved.method,
@@ -276,24 +315,19 @@ server.tool(
         evidence: finalBrowser.evidence,
         error_code: finalBrowser.error_code,
         message: finalBrowser.ok ? null : finalBrowser.evidence,
-        duration_ms: Date.now() - started
+        duration_ms: Date.now() - started,
+        verified
       });
 
-      const payload = {
+      return textResult({
         report,
         injection: {
           status: finalBrowser.ok ? 'filled' : 'failed',
           via: finalBrowser.via || null,
           url: finalBrowser.url || null,
-          password_fingerprint: service.fingerprint(resolved.password),
           site_id: resolved.site_id || null
         }
-      };
-      if (allowReveal) {
-        payload.password = resolved.password;
-        payload.warning = 'Reveal enabled; strip before cloud handoff.';
-      }
-      return textResult(payload);
+      });
     } catch (error) {
       return textResult(
         buildReport({
@@ -303,7 +337,8 @@ server.tool(
           method: service.methodLabel(),
           error_code: error.code || 'fill_failed',
           message: error.message,
-          duration_ms: Date.now() - started
+          duration_ms: Date.now() - started,
+          verified: false
         })
       );
     }
@@ -319,15 +354,18 @@ server.tool(
     site: z.string().optional(),
     username_selector: z.string().optional(),
     password_selector: z.string().optional(),
-    submit_selector: z.string().optional()
+    submit_selector: z.string().optional(),
+    success_selector: z.string().optional(),
+    success_url_includes: z.string().optional()
   },
   async (args) => {
     const started = Date.now();
     try {
-      const previous = process.env.ALIENPASS_MODE;
-      process.env.ALIENPASS_MODE = 'keyring';
-      const keyringService = createCredentialService({ mode: 'keyring', keyring, siteDirectory });
-      process.env.ALIENPASS_MODE = previous;
+      const keyringService = createCredentialService({
+        mode: 'keyring',
+        keyring,
+        siteDirectory
+      });
 
       const resolved = await keyringService.resolvePassword({
         username: args.username,
@@ -342,7 +380,8 @@ server.tool(
         password_selector: args.password_selector,
         submit_selector: args.submit_selector,
         submit: true,
-        allowLaunch: Boolean(args.site)
+        site: args.site || args.domain,
+        expectedHost: service.normalizeHostname(args.site || args.domain || '')
       });
       if (!browserResult.ok && browserResult.error_code === 'cdp_required' && args.site) {
         browserResult = await signInSession({
@@ -351,24 +390,26 @@ server.tool(
           password: resolved.password,
           username_selector: args.username_selector,
           password_selector: args.password_selector,
-          submit_selector: args.submit_selector
+          submit_selector: args.submit_selector,
+          success_selector: args.success_selector,
+          success_url_includes: args.success_url_includes
         });
       }
 
       return textResult({
         report: buildReport({
-          ok: browserResult.ok,
+          ok: browserResult.ok && Boolean(browserResult.verified),
           site: args.site || args.domain || null,
           username: resolved.username,
           method: 'keyring',
           evidence: browserResult.evidence,
           error_code: browserResult.error_code,
-          duration_ms: Date.now() - started
+          duration_ms: Date.now() - started,
+          verified: Boolean(browserResult.verified)
         }),
         injection: {
           status: browserResult.ok ? 'filled' : 'failed',
-          via: browserResult.via || null,
-          password_fingerprint: service.fingerprint(resolved.password)
+          via: browserResult.via || null
         }
       });
     } catch (error) {
@@ -380,7 +421,8 @@ server.tool(
           method: 'keyring',
           error_code: error.code || 'fill_failed',
           message: error.message,
-          duration_ms: Date.now() - started
+          duration_ms: Date.now() - started,
+          verified: false
         })
       );
     }
@@ -389,9 +431,9 @@ server.tool(
 
 server.tool(
   'sign_in_session',
-  'Full local sign-in: resolve credentials secretly, open/navigate browser, fill, submit, return cloud-safe report only.',
+  'Full local sign-in: resolve credentials secretly, browser fill/submit, return cloud-safe report only.',
   {
-    url: z.string().describe('Login page URL (http(s) or local file path)'),
+    url: z.string(),
     username: z.string().optional(),
     domain: z.string().optional(),
     site_id: z.string().optional(),
@@ -439,7 +481,8 @@ server.tool(
         evidence: browserResult.evidence,
         error_code: browserResult.error_code,
         message: browserResult.ok ? null : browserResult.evidence,
-        duration_ms: Date.now() - started
+        duration_ms: Date.now() - started,
+        verified: Boolean(browserResult.verified)
       });
 
       return textResult({
@@ -450,7 +493,6 @@ server.tool(
           submitted: browserResult.submitted
         },
         site_id: resolved.site_id || null,
-        password_fingerprint: service.fingerprint(resolved.password),
         secrets_included: false
       });
     } catch (error) {
@@ -462,7 +504,8 @@ server.tool(
           method: service.methodLabel(),
           error_code: error.code || 'sign_in_failed',
           message: error.message,
-          duration_ms: Date.now() - started
+          duration_ms: Date.now() - started,
+          verified: false
         })
       );
     }
@@ -471,7 +514,7 @@ server.tool(
 
 server.tool(
   'build_signin_report',
-  'Format a cloud-safe sign-in report after browser success/failure.',
+  'Format a cloud-safe sign-in report. Free-form fields are scrubbed for suspicious secret-like content.',
   {
     ok: z.boolean(),
     site: z.string().optional(),
@@ -481,7 +524,8 @@ server.tool(
     evidence: z.string().optional(),
     error_code: z.string().optional(),
     message: z.string().optional(),
-    duration_ms: z.number().optional()
+    duration_ms: z.number().optional(),
+    verified: z.boolean().optional()
   },
   async (fields) => textResult(buildReport(fields))
 );

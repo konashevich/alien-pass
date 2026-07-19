@@ -1,6 +1,6 @@
 {
   "name": "alienpass-mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Local Linux MCP + CLI: AlienPass v2 compose vault, keyring passwords, browser sign-in for Cursor subagents",
   "license": "MIT",

@@ -24,11 +24,12 @@ bash scripts/install.sh
 # or: npm install && npm test
 ```
 
+Prefer a working desktop keyring (`secret-tool`). Use `ALIENPASS_FORCE_FALLBACK=1` only for CI/dev — the file backend is encrypted, but weaker than libsecret.
+
 ## Quick start (compose)
 
 ```bash
-export ALIENPASS_FORCE_FALLBACK=1   # optional; use if no desktop keyring
-
+# Prefer libsecret when available. FORCE_FALLBACK is for CI/dev only.
 node src/cli.js init-master 'YourUniversalSecret'
 node src/cli.js add-site google-mail gmail \
   accounts.google.com,mail.google.com,google.com \
@@ -62,7 +63,8 @@ Copy [`config/cursor-mcp.example.json`](./config/cursor-mcp.example.json) and se
       "args": ["/ABSOLUTE/PATH/TO/alien-pass/mcp/src/server.js"],
       "env": {
         "ALIENPASS_MODE": "compose",
-        "ALIENPASS_ALLOW_REVEAL": "0"
+        "ALIENPASS_ALLOW_REVEAL": "0",
+        "ALIENPASS_AGENT_SAFE": "1"
       }
     }
   }
@@ -105,9 +107,18 @@ Local subagent calls MCP `sign_in_session` and returns the safe report.
 
 ## Security defaults
 
-- `ALIENPASS_ALLOW_REVEAL=0` — passwords/tokens never returned to the model
-- Site tokens live in AES-256-GCM `sites.vault`; vault key + master in keyring
-- Reports always set `secrets_included: false`
+- `ALIENPASS_ALLOW_REVEAL=0` — passwords never returned to the model
+- `ALIENPASS_ALLOW_REVEAL_MNEMONIC` stays off — assembled InputString is never returned with normal reveal
+- `ALIENPASS_AGENT_SAFE=1` in Cursor agent config — blocks vault mutation + reveal tools (use CLI for setup)
+- Site tokens live in AES-256-GCM `sites.vault`; vault key + master in keyring (or encrypted file fallback)
+- File fallback encrypts secrets at rest but is **weaker than libsecret** — prefer a desktop keyring; do not treat fallback as production-grade
+- Reports scrub suspicious content; no password fingerprints
+- CDP fill targets a host-matching tab (refuses ambiguous/mismatched pages)
+- Sign-in `ok: true` only with explicit success selector/URL verification
+
+## Cursor note
+
+`sign_in_session` without `ALIENPASS_CDP_URL` launches a temporary Chrome and closes it — that does **not** authenticate Cursor’s embedded browser. For the IDE session, attach CDP to the browser you want to keep.
 
 ## Tests
 

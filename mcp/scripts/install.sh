@@ -9,8 +9,16 @@ npm install
 echo "==> Running unit/self tests"
 npm run test:engine
 
-echo "==> Running browser integration test (skipped if no Chrome)"
-npm run test:signin || true
+echo "==> Running browser integration test"
+if npm run test:signin; then
+  echo "Browser sign-in test: OK"
+else
+  status=$?
+  echo "Browser sign-in test FAILED (exit $status)."
+  echo "Chrome/Chromium may be missing, or automation is broken."
+  echo "Unit tests already passed; fix browser before relying on sign-in."
+  exit "$status"
+fi
 
 echo "==> Doctor"
 ALIENPASS_FORCE_FALLBACK=1 node src/cli.js doctor

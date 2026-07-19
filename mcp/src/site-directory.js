@@ -73,11 +73,24 @@ function decryptJson(key, blob) {
 
 function readVaultFile() {
   const file = vaultPath();
+  if (!fs.existsSync(file)) return null;
+  let parsed;
   try {
-    return JSON.parse(fs.readFileSync(file, 'utf8'));
-  } catch {
-    return null;
+    parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch (error) {
+    throw Object.assign(new Error('site_vault_corrupt'), {
+      code: 'site_vault_corrupt',
+      cause: error,
+      path: file
+    });
   }
+  if (!parsed || parsed.v !== 1 || !parsed.iv || !parsed.ct || !parsed.tag) {
+    throw Object.assign(new Error('unsupported_vault_format'), {
+      code: 'unsupported_vault_format',
+      path: file
+    });
+  }
+  return parsed;
 }
 
 function writeVaultFile(blob) {
@@ -98,7 +111,15 @@ function createSiteDirectory(keyring) {
       const key = ensureVaultKey(keyring);
       const blob = readVaultFile();
       if (!blob) return emptyDirectory();
-      return decryptJson(key, blob);
+      try {
+        return decryptJson(key, blob);
+      } catch (error) {
+        throw Object.assign(new Error('site_vault_decrypt_failed'), {
+          code: 'site_vault_decrypt_failed',
+          cause: error,
+          path: vaultPath()
+        });
+      }
     },
 
     save(directory) {

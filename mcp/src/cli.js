@@ -84,8 +84,18 @@ async function main() {
       mode,
       allow_reveal: allowReveal,
       keyring_backend: keyring.backend,
+      keyring_reason: keyring.backend_reason || null,
+      keyring_warning: keyring.insecure_relative_to_libsecret
+        ? 'Encrypted file fallback is weaker than a locked desktop keyring'
+        : null,
       chrome_path: resolveChromePath(),
-      cdp: cdpEndpoint(),
+      cdp: (() => {
+        try {
+          return cdpEndpoint();
+        } catch (error) {
+          return { error: error.code || error.message };
+        }
+      })(),
       master_present: mode === 'compose' ? siteDirectory.hasMaster() : null,
       vault_path: siteDirectory.path,
       node: process.version,
@@ -238,7 +248,8 @@ async function main() {
       evidence: browserResult.evidence,
       error_code: browserResult.error_code,
       message: browserResult.ok ? null : browserResult.evidence,
-      duration_ms: Date.now() - started
+      duration_ms: Date.now() - started,
+      verified: Boolean(browserResult.verified)
     });
 
     print({
@@ -246,10 +257,10 @@ async function main() {
       browser: {
         via: browserResult.via,
         url: browserResult.url,
-        submitted: browserResult.submitted
+        submitted: browserResult.submitted,
+        verified: Boolean(browserResult.verified)
       },
-      site_id: resolved.site_id || null,
-      password_fingerprint: service.fingerprint(resolved.password)
+      site_id: resolved.site_id || null
     });
     process.exitCode = browserResult.ok ? 0 : 4;
     return;

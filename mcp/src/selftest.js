@@ -10,6 +10,8 @@ const engine = require('./alienpass-engine');
 const { applyCasing, assembleInputString, matchSiteProfile } = require('./mnemonic-compose');
 const { createKeyring } = require('./keyring');
 const { createSiteDirectory } = require('./site-directory');
+const { createCredentialService } = require('./credentials');
+const { buildReport } = require('./report');
 
 async function main() {
   const parsed = engine.parseCommandString('abc11:WeirdSiteTower');
@@ -96,10 +98,39 @@ async function main() {
   });
   assert.strictEqual(derived.password.length, 14);
 
-  // vault file must not contain cleartext token
+  // vault file must not contain cleartext token/master
   const vaultRaw = fs.readFileSync(process.env.ALIENPASS_SITE_VAULT, 'utf8');
   assert.doesNotMatch(vaultRaw, /gmail/);
   assert.doesNotMatch(vaultRaw, /Tower35/);
+
+  const storeRaw = fs.readFileSync(process.env.ALIENPASS_FALLBACK_STORE, 'utf8');
+  assert.doesNotMatch(storeRaw, /Tower35/);
+  assert.match(storeRaw, /aes-256-gcm/);
+
+  // hostname normalization for Mode B
+  process.env.ALIENPASS_MODE = 'keyring';
+  const modeB = createCredentialService({
+    mode: 'keyring',
+    keyring,
+    siteDirectory: directory
+  });
+  modeB.keyring.store(
+    { username: 'test@me.com', domain: 'example.com', kind: 'password' },
+    'site-secret'
+  );
+  const resolvedB = await modeB.resolvePassword({
+    username: 'test@me.com',
+    site: 'https://example.com/login'
+  });
+  assert.strictEqual(resolvedB.password, 'site-secret');
+
+  const scrubbed = buildReport({
+    ok: false,
+    message: 'password=SuperSecretValue123',
+    evidence: 'ok'
+  });
+  assert.strictEqual(scrubbed.message, '[redacted_suspicious_content]');
+  assert.strictEqual(scrubbed.secrets_included, false);
 
   fs.rmSync(tmpRoot, { recursive: true, force: true });
 
@@ -111,7 +142,10 @@ async function main() {
       deterministic: true,
       compose: true,
       composed_sample: 'gmaiLTower35',
-      vault_hides_token: true
+      vault_hides_token: true,
+      fallback_encrypted: true,
+      hostname_normalize: true,
+      report_scrub: true
     })
   );
 }

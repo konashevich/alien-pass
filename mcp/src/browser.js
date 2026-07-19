@@ -7,13 +7,14 @@
  *     ALIENPASS_CDP_URL=http://127.0.0.1:9222
  *     or ALIENPASS_CDP_PORT=9222
  *
- * Secrets stay in this process; callers should not log passwords.
+ * CDP endpoints must be loopback unless ALIENPASS_ALLOW_REMOTE_CDP=1.
  */
 'use strict';
 
 const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
+const { normalizeHostname } = require('./credentials');
 
 const DEFAULT_USER_SELECTOR =
   'input[type="email"], input[name="username"], input[name="email"], input[autocomplete="username"], input#username, input#email';
@@ -42,12 +43,30 @@ function resolveChromePath() {
   return null;
 }
 
-function cdpEndpoint() {
-  if (process.env.ALIENPASS_CDP_URL) return process.env.ALIENPASS_CDP_URL;
-  if (process.env.ALIENPASS_CDP_PORT) {
-    return `http://127.0.0.1:${process.env.ALIENPASS_CDP_PORT}`;
+function assertLoopbackCdp(endpoint) {
+  if (process.env.ALIENPASS_ALLOW_REMOTE_CDP === '1') return;
+  let hostname;
+  try {
+    hostname = new URL(endpoint).hostname;
+  } catch {
+    throw Object.assign(new Error('invalid_cdp_url'), { code: 'invalid_cdp_url' });
   }
-  return null;
+  if (!['127.0.0.1', 'localhost', '::1'].includes(hostname)) {
+    throw Object.assign(
+      new Error('CDP URL must be loopback (127.0.0.1/localhost). Set ALIENPASS_ALLOW_REMOTE_CDP=1 to override.'),
+      { code: 'cdp_not_loopback' }
+    );
+  }
+}
+
+function cdpEndpoint() {
+  let endpoint = null;
+  if (process.env.ALIENPASS_CDP_URL) endpoint = process.env.ALIENPASS_CDP_URL;
+  else if (process.env.ALIENPASS_CDP_PORT) {
+    endpoint = `http://127.0.0.1:${process.env.ALIENPASS_CDP_PORT}`;
+  }
+  if (endpoint) assertLoopbackCdp(endpoint);
+  return endpoint;
 }
 
 function normalizeUrl(url) {
@@ -68,28 +87,105 @@ function normalizeUrl(url) {
   return raw;
 }
 
+function hostOf(url) {
+  try {
+    if (String(url).startsWith('file:')) return 'file';
+    return normalizeHostname(url);
+  } catch {
+    return null;
+  }
+}
+
+function hostsMatch(expected, actual) {
+  if (!expected || !actual) return false;
+  if (expected === 'file' && actual === 'file') return true;
+  if (actual === expected) return true;
+  return actual.endsWith(`.${expected}`) || expected.endsWith(`.${actual}`);
+}
+
 async function loadPlaywright() {
   try {
     return require('playwright-core');
   } catch (error) {
     throw Object.assign(
-      new Error(
-        'playwright-core is required for browser sign-in. Run: cd mcp && npm install'
-      ),
+      new Error('playwright-core is required for browser sign-in. Run: cd mcp && npm install'),
       { code: 'playwright_missing', cause: error }
     );
   }
 }
 
+async function collectPages(browser) {
+  const pages = [];
+  for (const context of browser.contexts()) {
+    for (const page of context.pages()) pages.push({ context, page });
+  }
+  return pages;
+}
+
+async function pickTargetPage(browser, options = {}) {
+  const expectedHost = options.expectedHost || (options.url ? hostOf(options.url) : null);
+  const pages = await collectPages(browser);
+
+  if (expectedHost) {
+    const matching = [];
+    for (const entry of pages) {
+      const pageHost = hostOf(entry.page.url());
+      if (hostsMatch(expectedHost, pageHost)) matching.push(entry);
+    }
+
+    if (matching.length === 1) return matching[0].page;
+
+    if (matching.length > 1) {
+      for (const entry of matching) {
+        const visible = await entry.page
+          .locator(DEFAULT_PASS_SELECTOR)
+          .first()
+          .isVisible()
+          .catch(() => false);
+        if (visible) return entry.page;
+      }
+      throw Object.assign(
+        new Error(`ambiguous_cdp_target:${expectedHost}:${matching.length}_tabs`),
+        { code: 'ambiguous_cdp_target' }
+      );
+    }
+  }
+
+  // No host match: prefer a page that already shows a password field.
+  for (const entry of pages) {
+    const visible = await entry.page
+      .locator(DEFAULT_PASS_SELECTOR)
+      .first()
+      .isVisible()
+      .catch(() => false);
+    if (visible) {
+      if (expectedHost) {
+        throw Object.assign(
+          new Error(`cdp_host_mismatch:expected_${expectedHost}_got_${hostOf(entry.page.url())}`),
+          { code: 'cdp_host_mismatch' }
+        );
+      }
+      return entry.page;
+    }
+  }
+
+  if (options.url) {
+    const context = browser.contexts()[0] || (await browser.newContext());
+    return context.newPage();
+  }
+
+  throw Object.assign(new Error('cdp_no_matching_page'), { code: 'cdp_no_matching_page' });
+}
+
 async function openContext(playwright, options = {}) {
   const endpoint = options.cdpUrl || cdpEndpoint();
   if (endpoint) {
+    assertLoopbackCdp(endpoint);
     const browser = await playwright.chromium.connectOverCDP(endpoint);
-    const context = browser.contexts()[0] || (await browser.newContext());
-    const page = context.pages()[0] || (await context.newPage());
+    const page = await pickTargetPage(browser, options);
     return {
       browser,
-      context,
+      context: page.context(),
       page,
       owned: false,
       via: 'cdp',
@@ -144,56 +240,87 @@ async function maybeClick(page, selector, timeout) {
 async function detectSuccess(page, options = {}) {
   const successSelector = options.success_selector;
   const successUrlIncludes = options.success_url_includes;
+  const timeout = options.timeout || 10000;
+
   if (successSelector) {
     try {
-      await page.locator(successSelector).first().waitFor({
-        state: 'visible',
-        timeout: options.timeout || 10000
-      });
-      return { ok: true, evidence: `selector:${successSelector}` };
+      await page.locator(successSelector).first().waitFor({ state: 'visible', timeout });
+      return { ok: true, verified: true, evidence: `selector:${successSelector}` };
     } catch {
-      return { ok: false, evidence: 'success_selector_not_found' };
-    }
-  }
-  if (successUrlIncludes) {
-    const href = page.url();
-    if (href.includes(successUrlIncludes)) {
-      return { ok: true, evidence: `url_includes:${successUrlIncludes}` };
-    }
-    try {
-      await page.waitForURL((url) => url.href.includes(successUrlIncludes), {
-        timeout: options.timeout || 10000
-      });
-      return { ok: true, evidence: `url_includes:${successUrlIncludes}` };
-    } catch {
-      return { ok: false, evidence: `url_missing:${successUrlIncludes}`, url: page.url() };
+      return {
+        ok: false,
+        verified: false,
+        evidence: 'success_selector_not_found',
+        error_code: 'success_selector_not_found'
+      };
     }
   }
 
-  // Heuristic: password field gone or URL changed away from login-ish path
+  if (successUrlIncludes) {
+    try {
+      if (page.url().includes(successUrlIncludes)) {
+        return { ok: true, verified: true, evidence: `url_includes:${successUrlIncludes}` };
+      }
+      await page.waitForURL((url) => url.href.includes(successUrlIncludes), { timeout });
+      return { ok: true, verified: true, evidence: `url_includes:${successUrlIncludes}` };
+    } catch {
+      return {
+        ok: false,
+        verified: false,
+        evidence: `url_missing:${successUrlIncludes}`,
+        error_code: 'success_url_missing',
+        url: page.url()
+      };
+    }
+  }
+
+  // Without explicit success criteria, do not claim authentication success.
   const href = page.url();
   const passwordVisible = await page
     .locator(DEFAULT_PASS_SELECTOR)
     .first()
     .isVisible()
     .catch(() => false);
-  if (!passwordVisible && !/login|signin|sign-in|auth/i.test(href)) {
-    return { ok: true, evidence: 'password_field_gone_and_url_not_loginish' };
+
+  if (/challenge|otp|2fa|mfa|verify|captcha/i.test(href) || passwordVisible === false) {
+    return {
+      ok: false,
+      verified: false,
+      evidence: 'submitted_unverified',
+      error_code: 'unverified'
+    };
   }
-  if (!passwordVisible) {
-    return { ok: true, evidence: 'password_field_gone' };
-  }
-  return { ok: false, evidence: 'login_form_still_present', url: href };
+
+  return {
+    ok: false,
+    verified: false,
+    evidence: 'login_form_still_present',
+    error_code: 'login_form_still_present',
+    url: href
+  };
 }
 
-/**
- * Sign in on a page: navigate (optional), fill username/password, submit, detect result.
- */
 async function signInSession(options = {}) {
   const started = Date.now();
   const playwright = await loadPlaywright();
   const timeout = options.timeout_ms || Number(process.env.ALIENPASS_BROWSER_TIMEOUT_MS) || 20000;
-  const session = await openContext(playwright, options);
+  let session;
+  try {
+    session = await openContext(playwright, {
+      ...options,
+      expectedHost: options.expectedHost || (options.url ? hostOf(options.url) : null)
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      verified: false,
+      evidence: error.message,
+      error_code: error.code || 'browser_open_failed',
+      url: null,
+      via: null,
+      duration_ms: Date.now() - started
+    };
+  }
 
   try {
     const targetUrl = options.url ? normalizeUrl(options.url) : null;
@@ -207,12 +334,10 @@ async function signInSession(options = {}) {
 
     await fillSelector(session.page, userSelector, options.username, timeout);
 
-    // Some IdPs are multi-step: username → next → password
     if (options.click_next_selector) {
       await maybeClick(session.page, options.click_next_selector, timeout);
       await session.page.waitForTimeout(400);
     } else {
-      // Best-effort: if password not visible yet, try a generic Next
       const passVisible = await session.page
         .locator(passSelector)
         .first()
@@ -244,16 +369,18 @@ async function signInSession(options = {}) {
 
     return {
       ok: detection.ok,
+      verified: Boolean(detection.verified),
       evidence: detection.evidence,
       url: session.page.url(),
       via: session.via,
       submitted,
       duration_ms: Date.now() - started,
-      error_code: detection.ok ? null : detection.evidence
+      error_code: detection.ok ? null : detection.error_code || detection.evidence
     };
   } catch (error) {
     return {
       ok: false,
+      verified: false,
       evidence: error.message,
       error_code: error.code || 'browser_signin_failed',
       url: session.page ? session.page.url() : null,
@@ -267,9 +394,6 @@ async function signInSession(options = {}) {
   }
 }
 
-/**
- * Fill credentials on an already-open CDP page without navigation.
- */
 async function fillCurrentPage(options = {}) {
   const started = Date.now();
   const playwright = await loadPlaywright();
@@ -278,14 +402,44 @@ async function fillCurrentPage(options = {}) {
   if (!endpoint) {
     return {
       ok: false,
+      verified: false,
       error_code: 'cdp_required',
       evidence: 'Set ALIENPASS_CDP_URL/PORT for fill-without-navigation, or use sign_in_session',
       duration_ms: Date.now() - started
     };
   }
 
-  const session = await openContext(playwright, options);
+  let session;
   try {
+    session = await openContext(playwright, {
+      ...options,
+      expectedHost: options.expectedHost || (options.site ? hostOf(options.site) : null)
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      verified: false,
+      error_code: error.code || 'browser_open_failed',
+      evidence: error.message,
+      duration_ms: Date.now() - started
+    };
+  }
+
+  try {
+    const expectedHost = options.expectedHost || (options.site ? hostOf(options.site) : null);
+    const pageHost = hostOf(session.page.url());
+    if (expectedHost && pageHost && !hostsMatch(expectedHost, pageHost)) {
+      return {
+        ok: false,
+        verified: false,
+        error_code: 'cdp_host_mismatch',
+        evidence: `expected_${expectedHost}_got_${pageHost}`,
+        url: session.page.url(),
+        via: session.via,
+        duration_ms: Date.now() - started
+      };
+    }
+
     const userSelector = options.username_selector || DEFAULT_USER_SELECTOR;
     const passSelector = options.password_selector || DEFAULT_PASS_SELECTOR;
     await fillSelector(session.page, userSelector, options.username, timeout);
@@ -297,7 +451,8 @@ async function fillCurrentPage(options = {}) {
     }
     return {
       ok: true,
-      evidence: options.submit ? 'filled_and_submitted' : 'filled_credentials',
+      verified: false,
+      evidence: options.submit ? 'filled_and_submitted_unverified' : 'filled_credentials',
       url: session.page.url(),
       via: session.via,
       duration_ms: Date.now() - started
@@ -305,6 +460,7 @@ async function fillCurrentPage(options = {}) {
   } catch (error) {
     return {
       ok: false,
+      verified: false,
       error_code: error.code || 'fill_failed',
       evidence: error.message,
       url: session.page ? session.page.url() : null,
@@ -324,6 +480,8 @@ module.exports = {
   resolveChromePath,
   cdpEndpoint,
   normalizeUrl,
+  hostOf,
+  hostsMatch,
   DEFAULT_USER_SELECTOR,
   DEFAULT_PASS_SELECTOR,
   DEFAULT_SUBMIT_SELECTOR
