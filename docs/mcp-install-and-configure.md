@@ -169,9 +169,14 @@ Exit code `0` and `"ok": true` means verified success.
 
 ## 4. Install a local AI model (Setup B)
 
-Use a small local model for the **sign-in worker only**.
+### 4.0 Rockchip RK3588 NPU (FriendlyElec) — recommended on-device
 
-### 4.1 Install Ollama
+Use **Qwen2.5-1.5B-Instruct** via RKLLM + **RKLLama** (OpenAI `/v1`).  
+Full board steps: [`rk3588-local-model.md`](./rk3588-local-model.md) and `mcp/scripts/rk3588/`.
+
+### 4.1 Install Ollama (x86/arm CPU stand-in, or non-NPU hosts)
+
+Use a small local model for the **sign-in worker only**.
 
 ```bash
 # Linux install script from https://ollama.com (or your distro package)

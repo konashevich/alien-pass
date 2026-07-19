@@ -80,6 +80,7 @@ The debug APK will be in `android/app/build/outputs/apk/debug/`.
 For Cursor workflows where a **cloud** main agent must not see passwords:
 
 - [`docs/mcp-install-and-configure.md`](docs/mcp-install-and-configure.md) — **full end-to-end install** (vault, Ollama, Cursor MCP, subagent)
+- [`docs/rk3588-local-model.md`](docs/rk3588-local-model.md) — **Qwen2.5-1.5B on RK3588 NPU** (RKLLama) + x86 stand-in
 - [`docs/mcp-local-signin-architecture.md`](docs/mcp-local-signin-architecture.md) — design
 - [`mcp/`](mcp/) — v1 product: compose vault, keyring Mode B, Playwright sign-in, MCP + CLI
 

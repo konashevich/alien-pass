@@ -12,6 +12,9 @@ Design: [`../docs/mcp-local-signin-architecture.md`](../docs/mcp-local-signin-ar
 **End-to-end install (vault + Ollama + Cursor MCP + subagent):**  
 [`../docs/mcp-install-and-configure.md`](../docs/mcp-install-and-configure.md)
 
+**RK3588 NPU (FriendlyElec) local model:**  
+[`../docs/rk3588-local-model.md`](../docs/rk3588-local-model.md)
+
 ## Requirements
 
 - Linux (x86_64 or arm64)
