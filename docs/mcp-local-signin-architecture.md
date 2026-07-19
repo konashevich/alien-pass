@@ -281,9 +281,9 @@ No Android/WebView dependency for this MCP path; it reuses the v2 algorithm only
 2. **Keyring backend** — `secret-tool` integration on Linux.
 3. **AlienPass v2 port** — share algorithm with `alienpass-v2.js` (Node Web Crypto).
 4. **Mode A compose** — encrypted site directory, master secret, casing assembly, `fill_login`.
-5. **Browser injection** — CDP attach to Cursor/Chromium; selector-based fill.
+5. **Browser injection** — CDP attach / Playwright launch; `sign_in_session` implemented.
 6. **Cursor profiles** — document local subagent + MCP; deny cloud attachment.
-7. **Optional** — collapse to single `sign_in_session` tool if local LLM proves unnecessary; optional confirm-on-unlock.
+7. **Optional later** — polkit confirm-on-unlock; tighter sandbox helper binary.
 
 ## 12. Why not only keyring? Why not only AlienPass?
 

@@ -75,12 +75,19 @@ The debug APK will be in `android/app/build/outputs/apk/debug/`.
 - `webDir` is `www` — ensure it contains `index.html`
 - Native service workers are disabled in WebViews — not needed since assets are local
 
-## Local MCP sign-in (concept + scaffold)
+## Local MCP sign-in (product)
 
-For Cursor workflows where a **cloud** main agent must not see passwords, see:
+For Cursor workflows where a **cloud** main agent must not see passwords:
 
-- [`docs/mcp-local-signin-architecture.md`](docs/mcp-local-signin-architecture.md) — agent split, keyring vs AlienPass modes, Linux arm64 notes
-- [`mcp/`](mcp/) — local stdio MCP server + CLI using AlienPass v2 + keyring
+- [`docs/mcp-local-signin-architecture.md`](docs/mcp-local-signin-architecture.md) — design
+- [`mcp/`](mcp/) — **v1 product**: compose vault, keyring Mode B, Playwright sign-in, MCP + CLI
+
+```bash
+cd mcp && bash scripts/install.sh
+node src/cli.js init-master '…'
+node src/cli.js add-site google-mail gmail accounts.google.com,mail.google.com --user you@example.com
+node src/cli.js sign-in 'https://accounts.google.com' --headed
+```
 
 Attach the MCP server only to a **local** subagent profile, never to the cloud agent.
 

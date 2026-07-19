@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Dashboard</title>
+</head>
+<body>
+  <h1 id="welcome">Welcome</h1>
+  <p>You are signed in.</p>
+  <a id="logout" href="login.html">Log out</a>
+  <script>
+    const user = new URLSearchParams(location.search).get('user') || '';
+    document.getElementById('welcome').textContent = 'Welcome ' + user;
+  </script>
+</body>
+</html>

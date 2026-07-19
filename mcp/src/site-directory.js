@@ -125,6 +125,14 @@ function createSiteDirectory(keyring) {
       return this.save(dir);
     },
 
+    deleteSite(id) {
+      const dir = this.load();
+      const before = (dir.sites || []).length;
+      dir.sites = (dir.sites || []).filter((s) => s.id !== String(id).trim());
+      const saved = this.save(dir);
+      return { ...saved, deleted: before !== dir.sites.length, id: String(id).trim() };
+    },
+
     listPublic() {
       const dir = this.load();
       return {
@@ -144,6 +152,38 @@ function createSiteDirectory(keyring) {
     resolve(urlOrHost) {
       const dir = this.load();
       return matchSiteProfile(dir.sites || [], urlOrHost);
+    },
+
+    resolveByUsername(username) {
+      const user = String(username || '').trim().toLowerCase();
+      if (!user) return null;
+      const dir = this.load();
+      const matches = (dir.sites || []).filter(
+        (s) => String(s.username || '').trim().toLowerCase() === user
+      );
+      if (matches.length === 1) return matches[0];
+      return null;
+    },
+
+    resolveById(id) {
+      const dir = this.load();
+      return (dir.sites || []).find((s) => s.id === String(id).trim()) || null;
+    },
+
+    resolveFlexible({ site, username, site_id } = {}) {
+      if (site_id) {
+        const byId = this.resolveById(site_id);
+        if (byId) return byId;
+      }
+      if (site) {
+        const byHost = this.resolve(site);
+        if (byHost) return byHost;
+      }
+      if (username) {
+        const byUser = this.resolveByUsername(username);
+        if (byUser) return byUser;
+      }
+      return null;
     },
 
     getMaster() {

@@ -1,68 +1,128 @@
-# AlienPass MCP (local sign-in)
+# AlienPass MCP — local sign-in product
 
-Local stdio MCP server + CLI for Cursor sign-in subagents. Implements AlienPass **v2** derivation and Linux keyring storage so a **cloud main agent never receives passwords**.
+Local **stdio MCP server + CLI** for Cursor. Keeps AlienPass mnemonics and passwords off cloud models.
 
-Full design: [`../docs/mcp-local-signin-architecture.md`](../docs/mcp-local-signin-architecture.md).
+- **Mode A / compose (default):** encrypted site→token directory + keyring master → assemble `cased(token)+master` → AlienPass v2 → browser fill
+- **Mode A / legacy:** full InputString in keyring
+- **Mode B:** final passwords in keyring
+- **Browser:** Playwright + system Chrome (launch or CDP attach)
+
+Design: [`../docs/mcp-local-signin-architecture.md`](../docs/mcp-local-signin-architecture.md).
 
 ## Requirements
 
-- Linux (arm64 and x86_64)
+- Linux (x86_64 or arm64)
 - Node.js 20+
-- Optional: `secret-tool` (`libsecret-tools`) for desktop keyring; otherwise a locked-down file fallback under `~/.local/share/alienpass-mcp/`
+- Google Chrome or Chromium (for sign-in)
+- Optional: `secret-tool` / libsecret (otherwise file fallback under `~/.local/share/alienpass-mcp/`)
 
 ## Install
 
 ```bash
 cd mcp
-npm install
-npm run test:engine
+bash scripts/install.sh
+# or: npm install && npm test
 ```
 
-## Modes
-
-| Env | Behavior |
-| --- | --- |
-| `ALIENPASS_MODE=compose` (default) | Encrypted site token directory + keyring master → assemble InputString → AlienPass v2 |
-| `ALIENPASS_MODE=alienpass` | Legacy: keyring stores full InputString per username/domain |
-| `ALIENPASS_MODE=keyring` | Mode B: keyring stores final passwords |
-| `ALIENPASS_ALLOW_REVEAL=0` (default) | `generate_password` refuses; prefer `fill_*` |
-| `ALIENPASS_FORCE_FALLBACK=1` | Use file store instead of libsecret |
-
-### Compose setup (associative tokens)
+## Quick start (compose)
 
 ```bash
-export ALIENPASS_FORCE_FALLBACK=1
-export ALIENPASS_MODE=compose
-# via MCP tools store_master_secret + upsert_site_profile, or upcoming CLI helpers
+export ALIENPASS_FORCE_FALLBACK=1   # optional; use if no desktop keyring
+
+node src/cli.js init-master 'YourUniversalSecret'
+node src/cli.js add-site google-mail gmail \
+  accounts.google.com,mail.google.com,google.com \
+  --user you@example.com --casing last_upper
+
+# Full sign-in (opens Chrome, fills, reports JSON without password)
+node src/cli.js sign-in 'https://accounts.google.com' --headed
+
+node src/cli.js doctor
+node src/cli.js list-sites
 ```
 
-Example assembly: token `gmail` + casing `last_upper` + master `Tower35` → `gmaiLTower35`.
-Hosts like `accounts.google.com` map to that token inside an AES-GCM vault; agents never see the token.
+Assembly example: token `gmail` + `last_upper` + master `Tower35` → `gmaiLTower35`.
 
-## Cursor MCP snippet (local subagent only)
-
-See [`config/cursor-mcp.example.json`](./config/cursor-mcp.example.json).
-
-**Do not** attach this server to the cloud main agent.
-
-## CLI (terminal tool-calling)
+## Mode B
 
 ```bash
-export ALIENPASS_FORCE_FALLBACK=1
-node src/cli.js store-mnemonic 'you@example.com' '*' 'GmailTower'
-ALIENPASS_ALLOW_REVEAL=1 node src/cli.js generate 'you@example.com' 1
-node src/cli.js report-ok 'you@example.com' 'https://example.com' alienpass-v2
+node src/cli.js store-password you@example.com example.com 'site-password'
+ALIENPASS_MODE=keyring node src/cli.js sign-in 'https://example.com/login' you@example.com --headed
 ```
 
-## Subagent handoff (what the cloud agent may say)
+## Cursor MCP (local subagent only)
+
+Copy [`config/cursor-mcp.example.json`](./config/cursor-mcp.example.json) and set the absolute path to `mcp/src/server.js`.
+
+```json
+{
+  "mcpServers": {
+    "alienpass": {
+      "command": "node",
+      "args": ["/ABSOLUTE/PATH/TO/alien-pass/mcp/src/server.js"],
+      "env": {
+        "ALIENPASS_MODE": "compose",
+        "ALIENPASS_ALLOW_REVEAL": "0"
+      }
+    }
+  }
+}
+```
+
+**Do not** attach this server to a cloud proprietary main agent.
+
+Optional: point at Cursor/Chrome remote debugging:
+
+```bash
+export ALIENPASS_CDP_URL=http://127.0.0.1:9222
+```
+
+System prompt for the local subagent: [`config/local-subagent-system-prompt.md`](./config/local-subagent-system-prompt.md).
+
+### Recommended cloud → local handoff
+
+Cloud agent sends only:
 
 ```text
-Sign in on the already-open page as you@example.com.
-Use local alienpass MCP fill_login (domain=example.com, login_index=1).
-Do not print passwords. Return only build_signin_report JSON.
+Sign in at <url> as <email>. Use alienpass sign_in_session.
+Return only the report JSON. Never print passwords.
 ```
 
-## Status
+Local subagent calls MCP `sign_in_session` and returns the safe report.
 
-- v2 engine + keyring + MCP tools: implemented (scaffold)
-- Browser CDP injection into Cursor’s embedded browser: planned (see architecture Phase 5)
+## MCP tools
+
+| Tool | Role |
+| --- | --- |
+| `doctor` | Environment check |
+| `store_master_secret` / `upsert_site_profile` / `delete_site_profile` | Compose vault setup |
+| `store_password` / `store_mnemonic` | Mode B / legacy |
+| `sign_in_session` | **Primary:** resolve + browser sign-in + safe report |
+| `fill_login` / `fill_stored_password` | Fill via CDP or launch |
+| `auth_status` / `list_accounts` | Non-secret status |
+| `generate_password` | Reveal (off by default) |
+| `build_signin_report` | Format cloud-safe report |
+
+## Security defaults
+
+- `ALIENPASS_ALLOW_REVEAL=0` — passwords/tokens never returned to the model
+- Site tokens live in AES-256-GCM `sites.vault`; vault key + master in keyring
+- Reports always set `secrets_included: false`
+
+## Tests
+
+```bash
+npm run test:engine    # crypto + compose vault
+npm run test:signin    # real Chrome against fixtures/login.html
+npm test
+```
+
+## Layout
+
+```text
+mcp/
+  src/           engine, compose, vault, keyring, browser, MCP, CLI
+  fixtures/      local login pages for e2e
+  config/        Cursor MCP + subagent prompt examples
+  scripts/       install.sh
+```

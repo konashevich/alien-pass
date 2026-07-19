@@ -1,8 +1,8 @@
 {
   "name": "alienpass-mcp",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
-  "description": "Local Linux MCP server: AlienPass v2 + keyring for Cursor sign-in subagents",
+  "description": "Local Linux MCP + CLI: AlienPass v2 compose vault, keyring passwords, browser sign-in for Cursor subagents",
   "license": "MIT",
   "type": "commonjs",
   "engines": {
@@ -15,10 +15,15 @@
   "scripts": {
     "start": "node src/server.js",
     "cli": "node src/cli.js",
-    "test:engine": "node src/selftest.js"
+    "doctor": "node src/cli.js doctor",
+    "test": "npm run test:engine && npm run test:signin",
+    "test:engine": "node src/selftest.js",
+    "test:signin": "node src/integration-signin.js",
+    "install:local": "bash scripts/install.sh"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
+    "playwright-core": "^1.52.0",
     "zod": "^3.24.1"
   }
 }

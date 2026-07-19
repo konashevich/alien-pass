@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>AlienPass MCP Test Login</title>
+  <style>
+    body { font-family: sans-serif; max-width: 420px; margin: 3rem auto; }
+    label { display: block; margin-top: 1rem; }
+    input { width: 100%; padding: 0.5rem; }
+    button { margin-top: 1.25rem; padding: 0.6rem 1rem; }
+    .ok { color: #0a7; }
+  </style>
+</head>
+<body>
+  <h1>Test Login</h1>
+  <form id="loginForm" action="dashboard.html" method="get">
+    <label>Email
+      <input id="email" name="email" type="email" autocomplete="username" required>
+    </label>
+    <label>Password
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+    </label>
+    <button type="submit">Sign in</button>
+  </form>
+  <p id="status"></p>
+  <script>
+    const EXPECTED_USER = 'test@me.com';
+    // Password is whatever AlienPass derives for compose fixture in integration test;
+    // for Mode B fixture tests we accept literal 'fixture-password'.
+    const params = new URLSearchParams(location.search);
+    const expectedPass = params.get('expect') || 'fixture-password';
+    document.getElementById('loginForm').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      if (email === EXPECTED_USER && password === expectedPass) {
+        location.href = 'dashboard.html?user=' + encodeURIComponent(email);
+        return;
+      }
+      document.getElementById('status').textContent = 'Invalid credentials';
+    });
+  </script>
+</body>
+</html>
