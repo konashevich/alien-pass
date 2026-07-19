@@ -79,17 +79,18 @@ The debug APK will be in `android/app/build/outputs/apk/debug/`.
 
 For Cursor workflows where a **cloud** main agent must not see passwords:
 
+- [`docs/mcp-install-and-configure.md`](docs/mcp-install-and-configure.md) — **full end-to-end install** (vault, Ollama, Cursor MCP, subagent)
 - [`docs/mcp-local-signin-architecture.md`](docs/mcp-local-signin-architecture.md) — design
-- [`mcp/`](mcp/) — **v1 product**: compose vault, keyring Mode B, Playwright sign-in, MCP + CLI
+- [`mcp/`](mcp/) — v1 product: compose vault, keyring Mode B, Playwright sign-in, MCP + CLI
 
 ```bash
 cd mcp && bash scripts/install.sh
 node src/cli.js init-master '…'
 node src/cli.js add-site google-mail gmail accounts.google.com,mail.google.com --user you@example.com
-node src/cli.js sign-in 'https://accounts.google.com' --headed
+node src/cli.js sign-in 'https://accounts.google.com' --headed --success-url myaccount.google.com
 ```
 
-Attach the MCP server only to a **local** subagent profile, never to the cloud agent.
+Attach the MCP server only with `ALIENPASS_AGENT_SAFE=1` (see install guide). Prefer a local worker for sign-in; never enable reveal for cloud agents.
 
 ## Contributing
 

@@ -9,6 +9,9 @@ Local **stdio MCP server + CLI** for Cursor. Keeps AlienPass mnemonics and passw
 
 Design: [`../docs/mcp-local-signin-architecture.md`](../docs/mcp-local-signin-architecture.md).
 
+**End-to-end install (vault + Ollama + Cursor MCP + subagent):**  
+[`../docs/mcp-install-and-configure.md`](../docs/mcp-install-and-configure.md)
+
 ## Requirements
 
 - Linux (x86_64 or arm64)
